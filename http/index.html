@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Twitter search tool</title>
+    <link rel="stylesheet" href="http://x.scraperwiki.com/vendor/style/bootstrap.min.css">
+    <link rel="stylesheet" href="http://x.scraperwiki.com/vendor/style/metro.bootstrap.css">
+    <script src="http://x.scraperwiki.com/js/scraperwiki.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8/jquery.min.js"></script>
+    <script src="https://raw.github.com/allmarkedup/jQuery-URL-Parser/master/purl.js"></script>
+
+    <meta http-equiv="cleartype" content="on">
+
+    <style type="text/css">
+
+body {
+  padding: 20px;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+.muted {
+  margin-right: 10px;
+}
+
+p.loading {
+    display: none;
+
+    margin-top: 100px;
+    padding-top: 50px;
+    text-align: center;
+    background: transparent url('tool-loader.gif') center top no-repeat;
+    color: #666;
+    font-size: 20px;
+}       
+
+    </style>
+  </head>
+  <body>
+    <h2>Get people who follow or are followed by:</h2>
+
+   <form id="tw" action="#" method="POST" enctype="multipart/form-data">
+      <input type="text" value="" name="q" size="80" id="q">
+      <input type="hidden" name="apikey" id="apikey">
+      <input type="hidden" name="next" id="next">
+      <input type="button" value="Go!" id="submit" disabled="disabled">
+    </form>
+
+    <p>Examples: @spikingneural, bengoldacre (your choice whether you type the @)
+
+    <p class="loading">Getting tweets&hellip;</p>
+
+   <script>
+      var escapeshell = function(cmd) {
+        return "'"+cmd.replace(/'/g,"'\\''")+"'";
+      };
+      $(document).ready(function() {
+        var settings = scraperwiki.readSettings()
+        var callback_url
+        var oauth_verifier
+        scraperwiki.tool.getURL(function(our_url) {
+            console.log(our_url)
+            // pull out OAuth parameters that we need
+            var url = $.url(our_url)
+            oauth_verifier = url.param('oauth_verifier')
+            // remove query parameters for the callback URL, so they don't stack up if we
+            // go multiple times to Twitter 
+            callback_url = url.attr('base') + url.attr('path')
+            // only when we have the callback URL, allow the submit button to be clicked
+            $("#submit").removeAttr("disabled")
+        })
+
+        $('#next').val("#{window.location.pathname}done.html#{window.location.hash}")
+        $('#apikey').val(settings.source.apikey)
+        scraperwiki.exec('touch ~/tool/user.txt; cat ~/tool/user.txt').done(function(data) {
+            $('#q').val(data)
+        })
+
+        $('#submit').on('click', function() {
+            $('p.loading').show()
+            var q = $('#q').val()
+            q = q.replace(/^@/,'')
+            if (q.match(/[^a-zA-Z0-9_]/)) {
+                // XXX todo show errors better
+                alert("Twitter user names only use the alphabet, numbers and underscore.")
+                return
+            }
+            var cmd = 'echo ' + escapeshell(q) + '>~/tool/user.txt'
+            scraperwiki.exec(cmd)
+            scraperwiki.exec('cd ~/tool/; ./get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
+                console.log(content)
+                // Redirect to Twitter if we get a URL telling us to
+                if (content.match(/https:\/\/api.twitter.com/)) {
+                    scraperwiki.tool.redirect(content)
+                    return
+                }
+
+                // Otherwise we've done
+                $(this).addClass("done")
+                $('p.loading').hide()
+                var p = $('<p>').addClass('success').html('<b>Tweets imported!</b> Please navigate to your dataset somehow. (Yes, this needs to be improved)')
+                $('body').append(p)
+            });
+        })
+      })
+    </script>
+
+  </body>
+</html>

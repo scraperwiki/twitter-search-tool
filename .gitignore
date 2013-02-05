@@ -1,0 +1,7 @@
+.*.swp
+*.pyc
+*~
+user.txt
+twitter_pre_session
+twitter_verified_session
+secrets.py
