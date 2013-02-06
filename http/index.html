@@ -78,6 +78,12 @@ p.loading {
             $('#q').val(data)
         })
 
+        $('#q').on('keypress', function(e){
+          if(e.which == 13){
+            $('#submit').trigger('click')
+          }
+        })
+
         $('#submit').on('click', function() {
             $('p.loading').show()
             var q = $('#q').val()
