@@ -4,6 +4,10 @@ import os
 import json
 import urllib
 import sys
+import collections
+import dateutil.parser
+
+import scraperwiki
 
 from secrets import *
 
@@ -41,7 +45,6 @@ def oauth_url_dance(consumer_key, consumer_secret, callback_url, pre_verify_toke
     write_token_file(verified_token_filename, oauth_token, oauth_token_secret)
     return oauth_token, oauth_token_secret
 
-# XXX we need to make REDIRECT_URL to the out of frame URL so this works for any dataset
 (callback_url, oauth_verifier) = (sys.argv[1], sys.argv[2])
 if not os.path.exists(CREDS_VERIFIED):
     redirect_to_url = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
@@ -50,19 +53,41 @@ if not os.path.exists(CREDS_VERIFIED):
         print result
         sys.exit()
 
-print "authenticated"
-
 oauth_token, oauth_token_secret = read_token_file(CREDS_VERIFIED)
-
 tw = twitter.Twitter(auth=twitter.OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET))
 
-# XXX We're going to need to check for exceptions like this and kill auth files and reauth
+# XXX We're going to need to check for exceptions like this and delete the auth files and reauth
+# You can get these exceptions either just above, or in the dance too - basically in the whole file...
 #twitter.api.TwitterHTTPError: Twitter sent status 401 for URL: 1.1/followers/list.json using parameters: (oauth_consumer_key=3CejKAAW7OGqni9lxuU09g&oauth_nonce=14791547903118891158&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1360055733&oauth_token=PFcsB0z7nf7kNDVq030T6VZSK1PwTMLjuLxLi6U7PU&oauth_version=1.0&screen_name=spikingneural&oauth_signature=szYU8AYsfSp3m5Kzo%2FYGnKHZyP8%3D)
 #details: {"errors":[{"message":"Invalid or expired token","code":89}]}
 
-# Now work with Twitter
-#print tw.search.tweets(q="frabcus")
-print json.dumps(tw.followers.list(screen_name="spikingneural"))
+# Who are we after?
+screen_name = open("user.txt").read().strip()
+
+# Now do the hard work
+result = tw.followers.list(screen_name=screen_name)
+
+for user in result['users']:
+    data = collections.OrderedDict()
+
+    data['id'] = user['id']
+    data['name'] = user['name']
+    data['screen_name'] = user['screen_name']
+    data['created_at'] = dateutil.parser.parse(user['created_at'])
+
+    data['description'] = user['description']
+    data['url'] = user['url']
+    data['profile_image_url_https'] = user['profile_image_url_https']
+
+    data['statuses_count'] = user['statuses_count']
+    data['followers_count'] = user['followers_count']
+    data['following_count'] = user['friends_count']
+
+    data['location'] = user['location']
+    
+    scraperwiki.sqlite.save(['id'], data, table_name="twitter_users")
+
+print "all-done-ok"
 
 
 

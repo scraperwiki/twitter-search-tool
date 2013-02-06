@@ -50,7 +50,7 @@ p.loading {
 
     <p>Examples: @spikingneural, bengoldacre (your choice whether you type the @)
 
-    <p class="loading">Getting tweets&hellip;</p>
+    <p class="loading">Getting Twitter users&hellip;</p>
 
    <script>
       var escapeshell = function(cmd) {
@@ -87,22 +87,35 @@ p.loading {
                 alert("Twitter user names only use the alphabet, numbers and underscore.")
                 return
             }
+
+            // Pass various OAuth bits of data to the Python script that is going to do the work
             var cmd = 'echo ' + escapeshell(q) + '>~/tool/user.txt'
             scraperwiki.exec(cmd)
             scraperwiki.exec('cd ~/tool/; ./get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
                 console.log(content)
                 // Redirect to Twitter if we get a URL telling us to
-                if (content.match(/https:\/\/api.twitter.com/)) {
+                if (content.match(/^https:\/\/api.twitter.com/)) {
                     scraperwiki.tool.redirect(content)
                     return
                 }
 
-                // Otherwise we've done
-                $(this).addClass("done")
+                // The script has happily done its work
+                if (content.match(/^all-done-ok/)) {
+                    $(this).addClass("done")
+                    $('p.loading').hide()
+                    var p = $('<p>').addClass('success').html('<b>Tweets imported!</b> Please navigate to your dataset somehow. (Yes, this needs to be improved)')
+                    $('body').append(p)
+                    return
+                }
+            
+                // Otherwise we failed
                 $('p.loading').hide()
-                var p = $('<p>').addClass('success').html('<b>Tweets imported!</b> Please navigate to your dataset somehow. (Yes, this needs to be improved)')
+                var p = $('<p>').addClass('success').html('<b>Failed to import!</b> The technical error message is below.')
                 $('body').append(p)
-            });
+                var pre = $('<pre>').html(content)
+                $('body').append(pre)
+                return
+        });
         })
       })
     </script>
