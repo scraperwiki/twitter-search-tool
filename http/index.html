@@ -87,7 +87,7 @@ p.loading {
             }
         })
 
-        scraperwiki.exec('touch ~/tool/user.txt; cat ~/tool/user.txt').done(function(data) {
+        scraperwiki.exec('touch user.txt; cat user.txt').done(function(data) {
             $('#q').val(data)
         })
 
@@ -111,9 +111,9 @@ p.loading {
 
             // Pass various OAuth bits of data to the Python script that is going to do the work
             $('.btn-primary').addClass('disabled').html('Loading&hellip;').attr('disabled', true)
-            var cmd = 'echo ' + escapeshell(q) + '>~/tool/user.txt'
+            var cmd = 'echo ' + escapeshell(q) + '>user.txt'
             scraperwiki.exec(cmd)
-            scraperwiki.exec('cd ~/tool/; rm -fr scraperwiki.sqlite; ./get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
+            scraperwiki.exec('rm -fr scraperwiki.sqlite; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
                 console.log(content)
                 // Redirect to Twitter if we get a URL telling us to
                 if (content.match(/^https:\/\/api.twitter.com/)) {
