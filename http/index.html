@@ -103,8 +103,10 @@ p.loading {
                 if (content.match(/^all-done-ok/)) {
                     $(this).addClass("done")
                     $('p.loading').hide()
-                    var p = $('<p>').addClass('success').html('<b>Tweets imported!</b> Please navigate to your dataset somehow. (Yes, this needs to be improved)')
+                    var p = $('<p>').addClass('success').html('<b>Tweets imported!</b>')
                     $('body').append(p)
+                    var datasetUrl = "/dataset/" + scraperwiki.boxName
+                    scraperwiki.tool.redirect(datasetUrl)
                     return
                 }
             

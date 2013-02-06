@@ -47,9 +47,9 @@ def oauth_url_dance(consumer_key, consumer_secret, callback_url, pre_verify_toke
 
 (callback_url, oauth_verifier) = (sys.argv[1], sys.argv[2])
 if not os.path.exists(CREDS_VERIFIED):
-    redirect_to_url = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
+    result = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
     # we get a tuple back on success
-    if type(result) == string:
+    if type(result) == str:
         print result
         sys.exit()
 
