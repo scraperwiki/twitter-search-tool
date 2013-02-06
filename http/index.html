@@ -46,12 +46,10 @@ p.loading {
             <label class="control-label" for="q">Twitter user</label>
             <div class="controls">
                 <input type="text" name="q" size="80" id="q" placeholder="@spikingneural">
-                <button class="btn" type="button" id="submit" disabled="disabled">Go!</button>
+                <button class="btn btn-primary" type="button" id="submit" disabled="disabled">Go!</button>
             </div>
         </div>
     </div>
-
-    <p class="loading">Getting Twitter users&hellip;</p>
 
    <script>
       var escapeshell = function(cmd) {
@@ -90,8 +88,11 @@ p.loading {
                 return
             }
 
+            function doneLoading() {
+            }
+
             // Pass various OAuth bits of data to the Python script that is going to do the work
-            $('p.loading').show()
+            $('.btn-primary').addClass('disabled').html('Loading&hellip;').attr('disabled', true)
             var cmd = 'echo ' + escapeshell(q) + '>~/tool/user.txt'
             scraperwiki.exec(cmd)
             scraperwiki.exec('cd ~/tool/; ./get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
@@ -104,17 +105,18 @@ p.loading {
 
                 // The script has happily done its work
                 if (content.match(/^all-done-ok/)) {
-                    $(this).addClass("done")
-                    $('p.loading').hide()
-                    var p = $('<p>').addClass('success').html('<b>Tweets imported!</b>')
+                    var p = $('<p>').addClass('alert alert-success').html('<b>Twitter users imported!</b>')
                     $('body').prepend(p)
-                    var datasetUrl = "/dataset/" + scraperwiki.boxName
-                    scraperwiki.tool.redirect(datasetUrl)
+                    $('.btn-primary').html('Done')
+                    setTimeout(function() {
+                        var datasetUrl = "/dataset/" + scraperwiki.boxName
+                        scraperwiki.tool.redirect(datasetUrl)
+                    }, 1000)
                     return
                 }
             
                 // Otherwise we failed
-                $('p.loading').hide()
+                $('.btn-primary').removeClass('disabled').html('Try again!').attr('disabled', false)
                 var p = $('<p>').addClass('alert alert-error').html('<b>Failed to import!</b> Click here to show technical details.').on('click', function() {
                     $(this).next('pre').toggle()
                 }).css('cursor', 'pointer')
