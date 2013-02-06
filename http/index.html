@@ -81,7 +81,7 @@ p.loading {
             for (var key in results) {
                 var table = results[key]
                 if (table.name == "twitter_users") {
-                    var p = $('<p>').addClass('alert alert-warning').html("<b>Warning!</b> You have data in this tool already. It will be erased if you run it again from here.")
+                    var p = $('<p>').addClass('alert alert-warning').html("<b>Warning!</b> You have data in this dataset already. It will be erased if you run it again from here. Make a new dataset if you don't want to do that.")
                     $('body').prepend(p)
                 }
             }
@@ -107,9 +107,6 @@ p.loading {
                 $(".control-group").addClass('error')
                 $(".controls").append('<span class="help-inline">Twitter user names only use the alphabet, numbers and _</span>')
                 return
-            }
-
-            function doneLoading() {
             }
 
             // Pass various OAuth bits of data to the Python script that is going to do the work
