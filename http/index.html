@@ -41,12 +41,10 @@ p.loading {
   <body>
     <h2>Get people who follow or are followed by:</h2>
 
-    <form id="tw" action="#" method="POST" enctype="multipart/form-data">
-        <div class="input-append">
-            <input type="text" name="q" size="80" id="q" placeholder="@spikingneural">
-            <button class="btn" type="button" id="submit" disabled="disabled">Go!</button>
-        </div>
-    </form>
+    <p class="input-append">
+        <input type="text" name="q" size="80" id="q" placeholder="@spikingneural">
+        <button class="btn" type="button" id="submit" disabled="disabled">Go!</button>
+    </p>
 
     <p class="loading">Getting Twitter users&hellip;</p>
 
@@ -74,13 +72,17 @@ p.loading {
             $('#q').val(data)
         })
 
+
         $('#submit').on('click', function() {
             $('p.loading').show()
+            $('pre,.alert').remove()
+
             var q = $('#q').val()
             q = q.replace(/^@/,'')
             if (q.match(/[^a-zA-Z0-9_]/)) {
                 // XXX todo show errors better
-                alert("Twitter user names only use the alphabet, numbers and underscore.")
+                var p = $('<p>').addClass('alert alert-error').html('Twitter user names only use the alphabet, numbers and underscore.')
+                $('body').prepend(p)
                 return
             }
 
@@ -100,7 +102,7 @@ p.loading {
                     $(this).addClass("done")
                     $('p.loading').hide()
                     var p = $('<p>').addClass('success').html('<b>Tweets imported!</b>')
-                    $('body').append(p)
+                    $('body').prepend(p)
                     var datasetUrl = "/dataset/" + scraperwiki.boxName
                     scraperwiki.tool.redirect(datasetUrl)
                     return
@@ -108,10 +110,12 @@ p.loading {
             
                 // Otherwise we failed
                 $('p.loading').hide()
-                var p = $('<p>').addClass('success').html('<b>Failed to import!</b> The technical error message is below.')
-                $('body').append(p)
-                var pre = $('<pre>').html(content)
-                $('body').append(pre)
+                var p = $('<p>').addClass('alert alert-error').html('<b>Failed to import!</b> Click here to show technical details.').on('click', function() {
+                    $(this).next('pre').toggle()
+                }).css('cursor', 'pointer')
+                var pre = $('<pre>').html(content).hide()
+                $('body').prepend(pre)
+                $('body').prepend(p)
                 return
         });
         })
