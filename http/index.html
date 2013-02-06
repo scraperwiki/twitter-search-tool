@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="http://x.scraperwiki.com/vendor/style/metro.bootstrap.css">
     <script src="http://x.scraperwiki.com/js/scraperwiki.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8/jquery.min.js"></script>
-    <script src="https://raw.github.com/allmarkedup/jQuery-URL-Parser/master/purl.js"></script>
+    <script src="purl.js"></script>
 
     <meta http-equiv="cleartype" content="on">
 
@@ -71,6 +71,22 @@ p.loading {
             $("#submit").removeAttr("disabled")
         })
 
+        $.ajax({
+          url: '../sqlite',
+          dataType: 'json',
+          data: {
+            'q': 'select * from sqlite_master'
+          }
+        }).done(function(results){
+            for (var key in results) {
+                var table = results[key]
+                if (table.name == "twitter_users") {
+                    var p = $('<p>').addClass('alert alert-warning').html("<b>Warning!</b> You have data in this tool already. It will be erased if you run it again from here.")
+                    $('body').prepend(p)
+                }
+            }
+        })
+
         scraperwiki.exec('touch ~/tool/user.txt; cat ~/tool/user.txt').done(function(data) {
             $('#q').val(data)
         })
@@ -100,7 +116,7 @@ p.loading {
             $('.btn-primary').addClass('disabled').html('Loading&hellip;').attr('disabled', true)
             var cmd = 'echo ' + escapeshell(q) + '>~/tool/user.txt'
             scraperwiki.exec(cmd)
-            scraperwiki.exec('cd ~/tool/; ./get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
+            scraperwiki.exec('cd ~/tool/; rm -fr scraperwiki.sqlite; ./get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
                 console.log(content)
                 // Redirect to Twitter if we get a URL telling us to
                 if (content.match(/^https:\/\/api.twitter.com/)) {
