@@ -48,7 +48,7 @@ def oauth_url_dance(consumer_key, consumer_secret, callback_url, pre_verify_toke
 (callback_url, oauth_verifier) = (sys.argv[1], sys.argv[2])
 if not os.path.exists(CREDS_VERIFIED):
     result = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
-    # we get a tuple back on success
+    # a string means a URL for a redirect (otherwise we get a tuple back with auth tokens in)
     if type(result) == str:
         print result
         sys.exit()
@@ -64,8 +64,12 @@ tw = twitter.Twitter(auth=twitter.OAuth( oauth_token, oauth_token_secret, CONSUM
 # Who are we after?
 screen_name = open("user.txt").read().strip()
 
-# Now do the hard work
-result = tw.followers.list(screen_name=screen_name)
+try:
+    # Now do the hard work
+    result = tw.followers.list(screen_name=screen_name)
+except twitter.api.TwitterHTTPError, e:
+    print e.response_data
+    sys.exit()
 
 for user in result['users']:
     data = collections.OrderedDict()

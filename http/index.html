@@ -132,10 +132,29 @@ p.loading {
                     }, 1000)
                     return
                 }
+
+                var msg = "<b>Failed to import!</b>"
+
+                // It's a JSON formatted error (from Twitter)
+                var obj
+                try {
+                    obj = JSON.parse(content)
+                } catch(e) {
+                    obj = null
+                }
+                if (obj) {
+                    if (obj.errors[0].code == 34) {
+                        $(".control-group").addClass('error')
+                        $(".controls").append('<span class="help-inline">There isn\'t a Twitter user with that name.</span>')
+                        $('.btn-primary').removeClass('disabled').html('Try again!').attr('disabled', false)
+                        return
+                    }
+                    msg = "<b>Twitter error: </b>" + obj.errors[0].message + "."
+                }
             
-                // Otherwise we failed
+                // Otherwise an unknown error
                 $('.btn-primary').removeClass('disabled').html('Try again!').attr('disabled', false)
-                var p = $('<p>').addClass('alert alert-error').html('<b>Failed to import!</b> Click here to show technical details.').on('click', function() {
+                var p = $('<p>').addClass('alert alert-error').html(msg + ' Click here to show technical details.').on('click', function() {
                     $(this).next('pre').toggle()
                 }).css('cursor', 'pointer')
                 var pre = $('<pre>').html(content).hide()
