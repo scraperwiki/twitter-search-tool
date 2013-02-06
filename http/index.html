@@ -41,14 +41,12 @@ p.loading {
   <body>
     <h2>Get people who follow or are followed by:</h2>
 
-   <form id="tw" action="#" method="POST" enctype="multipart/form-data">
-      <input type="text" value="" name="q" size="80" id="q">
-      <input type="hidden" name="apikey" id="apikey">
-      <input type="hidden" name="next" id="next">
-      <input type="button" value="Go!" id="submit" disabled="disabled">
+    <form id="tw" action="#" method="POST" enctype="multipart/form-data">
+        <div class="input-append">
+            <input type="text" name="q" size="80" id="q" placeholder="@spikingneural">
+            <button class="btn" type="button" id="submit" disabled="disabled">Go!</button>
+        </div>
     </form>
-
-    <p>Examples: @spikingneural, bengoldacre (your choice whether you type the @)
 
     <p class="loading">Getting Twitter users&hellip;</p>
 
@@ -72,8 +70,6 @@ p.loading {
             $("#submit").removeAttr("disabled")
         })
 
-        $('#next').val("#{window.location.pathname}done.html#{window.location.hash}")
-        $('#apikey').val(settings.source.apikey)
         scraperwiki.exec('touch ~/tool/user.txt; cat ~/tool/user.txt').done(function(data) {
             $('#q').val(data)
         })
