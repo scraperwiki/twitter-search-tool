@@ -41,10 +41,15 @@ p.loading {
   <body>
     <h2>Get people who follow or are followed by:</h2>
 
-    <p class="input-append">
-        <input type="text" name="q" size="80" id="q" placeholder="@spikingneural">
-        <button class="btn" type="button" id="submit" disabled="disabled">Go!</button>
-    </p>
+    <div class="form-horizontal">
+        <div class="control-group">
+            <label class="control-label" for="q">Twitter user</label>
+            <div class="controls">
+                <input type="text" name="q" size="80" id="q" placeholder="@spikingneural">
+                <button class="btn" type="button" id="submit" disabled="disabled">Go!</button>
+            </div>
+        </div>
+    </div>
 
     <p class="loading">Getting Twitter users&hellip;</p>
 
@@ -74,19 +79,19 @@ p.loading {
 
 
         $('#submit').on('click', function() {
-            $('p.loading').show()
-            $('pre,.alert').remove()
+            $('pre,.alert,.help-inline').remove()
+            $('.control-group').removeClass('error')
 
             var q = $('#q').val()
             q = q.replace(/^@/,'')
             if (q.match(/[^a-zA-Z0-9_]/)) {
-                // XXX todo show errors better
-                var p = $('<p>').addClass('alert alert-error').html('Twitter user names only use the alphabet, numbers and underscore.')
-                $('body').prepend(p)
+                $(".control-group").addClass('error')
+                $(".controls").append('<span class="help-inline">Twitter user names only use the alphabet, numbers and _</span>')
                 return
             }
 
             // Pass various OAuth bits of data to the Python script that is going to do the work
+            $('p.loading').show()
             var cmd = 'echo ' + escapeshell(q) + '>~/tool/user.txt'
             scraperwiki.exec(cmd)
             scraperwiki.exec('cd ~/tool/; ./get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
