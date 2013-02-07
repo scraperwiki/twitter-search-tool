@@ -6,6 +6,7 @@ import urllib
 import sys
 import collections
 import dateutil.parser
+import requests
 
 import scraperwiki
 
@@ -18,12 +19,15 @@ from secrets import *
 # Which also is imported with:
 import twitter
 
+#########################################################################
+# Authentication to Twitter
+
 # This is designed to, when good, be submitted as a patch to add to twitter.oauth_dance (which
 # currently only has a function for PIN authentication, not redirect)
 from twitter.api import Twitter
 from twitter.oauth import OAuth, write_token_file, read_token_file
 from twitter.oauth_dance import parse_oauth_tokens
-def oauth_url_dance(consumer_key, consumer_secret, callback_url, pre_verify_token_filename, verified_token_filename):
+def oauth_url_dance(consumer_key, consumer_secret, callback_url, oauth_verifier, pre_verify_token_filename, verified_token_filename):
     # Verification happens in two stages...
 
     # 1) If we haven't done a pre-verification yet... Then we get credentials from Twitter
@@ -45,12 +49,16 @@ def oauth_url_dance(consumer_key, consumer_secret, callback_url, pre_verify_toke
     write_token_file(verified_token_filename, oauth_token, oauth_token_secret)
     return oauth_token, oauth_token_secret
 
-(callback_url, oauth_verifier) = (sys.argv[1], sys.argv[2])
 if not os.path.exists(CREDS_VERIFIED):
-    result = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
+    if len(sys.argv) < 3:
+        result = "need-oauth"
+    else:
+        (callback_url, oauth_verifier) = (sys.argv[1], sys.argv[2])
+        result = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, oauth_verifier, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
     # a string means a URL for a redirect (otherwise we get a tuple back with auth tokens in)
     if type(result) == str:
         print result
+        requests.post("https://x.scraperwiki.com/api/status", data={'type':'error', 'message':'Authentication failed, fix in settings'})
         sys.exit()
 
 oauth_token, oauth_token_secret = read_token_file(CREDS_VERIFIED)
@@ -61,17 +69,11 @@ tw = twitter.Twitter(auth=twitter.OAuth( oauth_token, oauth_token_secret, CONSUM
 #twitter.api.TwitterHTTPError: Twitter sent status 401 for URL: 1.1/followers/list.json using parameters: (oauth_consumer_key=3CejKAAW7OGqni9lxuU09g&oauth_nonce=14791547903118891158&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1360055733&oauth_token=PFcsB0z7nf7kNDVq030T6VZSK1PwTMLjuLxLi6U7PU&oauth_version=1.0&screen_name=spikingneural&oauth_signature=szYU8AYsfSp3m5Kzo%2FYGnKHZyP8%3D)
 #details: {"errors":[{"message":"Invalid or expired token","code":89}]}
 
-# Who are we after?
-screen_name = open("user.txt").read().strip()
 
-try:
-    # Now do the hard work
-    result = tw.followers.list(screen_name=screen_name)
-except twitter.api.TwitterHTTPError, e:
-    print e.response_data
-    sys.exit()
+#########################################################################
+# Helper functions
 
-for user in result['users']:
+def save_user(user, table_name):
     data = collections.OrderedDict()
 
     data['id'] = user['id']
@@ -89,9 +91,53 @@ for user in result['users']:
 
     data['location'] = user['location']
     
-    scraperwiki.sqlite.save(['id'], data, table_name="twitter_users")
+    scraperwiki.sqlite.save(['id'], data, table_name=table_name)
+
+
+#########################################################################
+# Main code
+
+# Read parameters
+screen_name = open("user.txt").read().strip()
+
+# Do the hard work
+try:
+    # print json.dumps(tw.application.rate_limit_status())
+
+    # Save data about followers...
+
+    # always get the first page - right now that gets most recent new followers
+    #print "doing first page"
+    result = tw.followers.list(screen_name=screen_name)
+    for user in result['users']:
+        save_user(user, "twitter_followers")
+    next_cursor = result['next_cursor']
+    next_cursor = scraperwiki.sqlite.get_var('next_cursor_followers', next_cursor)
+
+    # save data about the source user in another table (e.g. has total number of followers in it)
+    profile = tw.users.lookup(screen_name=screen_name)
+    save_user(profile[0], "twitter_main")
+
+    # then proceed with other pages from the cursor:
+    while next_cursor != 0:
+        #print "doing next cursor", next_cursor
+        result = tw.followers.list(screen_name=screen_name, cursor=next_cursor)
+        for user in result['users']:
+            save_user(user, "twitter_followers")
+        next_cursor = result['next_cursor']
+        scraperwiki.sqlite.save_var('next_cursor_followers', next_cursor)
+
+
+except twitter.api.TwitterHTTPError, e:
+    print e.response_data
+    obj = json.loads(e.response_data)
+    # if (obj['errors'][0]['code'] == 34): # auth failed
+    # if (obj['errors'][0]['code'] == 88): # rate limited
+    requests.post("https://x.scraperwiki.com/api/status", data={'type':'error', 'message':obj['errors'][0]['message']})
+    sys.exit()
 
 print "all-done-ok"
+requests.post("https://x.scraperwiki.com/api/status", data={'type':'ok', 'message':'All up to date'})
 
 
 

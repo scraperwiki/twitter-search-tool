@@ -80,9 +80,10 @@ p.loading {
         }).done(function(results){
             for (var key in results) {
                 var table = results[key]
-                if (table.name == "twitter_users") {
+                if (table.name == "twitter_followers" || table.name == "twitter_main") {
                     var p = $('<p>').addClass('alert alert-warning').html("<b>Warning!</b> You have data in this dataset already. It will be erased if you run it again from here. Make a new dataset if you don't want to do that.")
                     $('body').prepend(p)
+                    break
                 }
             }
         })
@@ -134,6 +135,7 @@ p.loading {
                 }
 
                 var msg = "<b>Failed to import!</b>"
+                var style = "error"
 
                 // It's a JSON formatted error (from Twitter)
                 var obj
@@ -149,12 +151,17 @@ p.loading {
                         $('.btn-primary').removeClass('disabled').html('Try again!').attr('disabled', false)
                         return
                     }
-                    msg = "<b>Twitter error: </b>" + obj.errors[0].message + "."
+                    if (obj.errors[0].code == 88) {
+                        style = "warning"
+                        msg = "<b>Twitter rate limit exceeded!</b> Most likely there are lots of followers &ndash; the data will gradually accumulate over time."
+                    } else {
+                        msg = "<b>Twitter error: </b>" + obj.errors[0].message + "."
+                    }    
                 }
             
                 // Otherwise an unknown error
                 $('.btn-primary').removeClass('disabled').html('Try again!').attr('disabled', false)
-                var p = $('<p>').addClass('alert alert-error').html(msg + ' Click here to show technical details.').on('click', function() {
+                var p = $('<p>').addClass('alert alert-' + style).html(msg + ' Click here to show technical details.').on('click', function() {
                     $(this).next('pre').toggle()
                 }).css('cursor', 'pointer')
                 var pre = $('<pre>').html(content).hide()
