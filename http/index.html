@@ -122,6 +122,7 @@ p.loading {
 
                 // The script has happily done its work
                 if (content.match(/^all-done-ok/)) {
+                    scraperwiki.exec('crontab tool/crontab')
                     var p = $('<p>').addClass('alert alert-success').html('<b>Twitter users imported!</b>')
                     $('body').prepend(p)
                     $('.btn-primary').html('Done')
@@ -132,6 +133,7 @@ p.loading {
                     return
                 }
                 if (content.match(/^first-few-ok/)) {
+                    scraperwiki.exec('crontab tool/crontab')
                     var p = $('<p>').addClass('alert alert-success').html('<b>First few users imported!</b> The rest will take a while, come back in at least an hour.')
                     $('body').prepend(p)
                     $('.btn-primary').html('Done')

@@ -136,6 +136,7 @@ try:
     else:
         print "first-few-ok"
         requests.post("https://x.scraperwiki.com/api/status", data={'type':'ok', 'message':'First few followers have been fetched. Others will gradually be added over the coming hours.'})
+        sys.exit()
 
 except twitter.api.TwitterHTTPError, e:
     print e.response_data
