@@ -19,6 +19,11 @@ from secrets import *
 # Which also is imported with:
 import twitter
 
+# Detect if on command line (cron or testing) or not
+in_cli = False
+if len(sys.argv) == 1:
+    in_cli = True
+
 #########################################################################
 # Authentication to Twitter
 
@@ -118,15 +123,19 @@ try:
     profile = tw.users.lookup(screen_name=screen_name)
     save_user(profile[0], "twitter_main")
 
-    # then proceed with other pages from the cursor:
-    while next_cursor != 0:
-        #print "doing next cursor", next_cursor
-        result = tw.followers.list(screen_name=screen_name, cursor=next_cursor)
-        for user in result['users']:
-            save_user(user, "twitter_followers")
-        next_cursor = result['next_cursor']
-        scraperwiki.sqlite.save_var('next_cursor_followers', next_cursor)
-
+    # do backlog, if we're running from the cli (not from user interaction, as too slow!)
+    if in_cli:
+        # then proceed with other pages from the cursor:
+        while next_cursor != 0:
+            #print "doing next cursor", next_cursor
+            result = tw.followers.list(screen_name=screen_name, cursor=next_cursor)
+            for user in result['users']:
+                save_user(user, "twitter_followers")
+            next_cursor = result['next_cursor']
+            scraperwiki.sqlite.save_var('next_cursor_followers', next_cursor)
+    else:
+        print "first-few-ok"
+        requests.post("https://x.scraperwiki.com/api/status", data={'type':'ok', 'message':'First few followers have been fetched. Others will gradually be added over the coming hours.'})
 
 except twitter.api.TwitterHTTPError, e:
     print e.response_data

@@ -133,6 +133,12 @@ p.loading {
                     }, 1000)
                     return
                 }
+                if (content.match(/^first-few-ok/)) {
+                    var p = $('<p>').addClass('alert alert-success').html('<b>First few users imported!</b> The rest will take a while, come back in an hour.')
+                    $('body').prepend(p)
+                    $('.btn-primary').html('Done')
+                    return
+                }
 
                 var msg = "<b>Failed to import!</b>"
                 var style = "error"
@@ -152,8 +158,7 @@ p.loading {
                         return
                     }
                     if (obj.errors[0].code == 88) {
-                        style = "warning"
-                        msg = "<b>Twitter rate limit exceeded!</b> Most likely there are lots of followers &ndash; the data will gradually accumulate over time."
+                        msg = "<b>Twitter rate limit exceeded!</b> Try again in 15 minutes."
                     } else {
                         msg = "<b>Twitter error: </b>" + obj.errors[0].message + "."
                     }    
