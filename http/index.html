@@ -39,63 +39,113 @@ p.loading {
     </style>
   </head>
   <body>
-    <h2>Get people who follow:</h2>
 
-    <div class="form-horizontal">
-        <div class="control-group">
-            <label class="control-label" for="q">Twitter user</label>
-            <div class="controls">
-                <input type="text" name="q" size="80" id="q" placeholder="@spikingneural">
-                <button class="btn btn-primary" type="button" id="submit" disabled="disabled">Go!</button>
+     <div id="got-settings" style="display:none">
+         <h2>Getting @<span class="who">...</span>'s followers</h2>
+
+         <p>New followers are added once per hour. 
+
+         <button class="btn btn-primary" type="button" id="refresh" disabled="disabled">Refresh!</button> (also fixes any authentication issues)
+
+         <p>If the user has a large number of followers they gradually trickle in.</p>
+
+         <hr>
+
+         <h2>Change settings</h2>
+
+         <p>You need to clear the current data to change the settings. Alternatively, make a new dataset.</p>
+
+         <button class="btn btn-danger" type="button" id="clear-data" disabled="disabled">Clear data</button>
+    </div>
+
+    <div id="get-settings" style="display:none">
+        <h2>Get Twitter followers</h2>
+
+        <div class="form-horizontal">
+            <div class="control-group">
+                <label class="control-label" for="q">Twitter user</label>
+                <div class="controls">
+                    <input type="text" name="q" size="80" id="q" placeholder="@spikingneural">
+                    <button class="btn btn-primary" type="button" id="submit" disabled="disabled">Go!</button>
+                </div>
             </div>
         </div>
     </div>
 
    <script>
+      var show_hide_stuff = function() {
+            // Find out what user it is
+            scraperwiki.exec('touch user.txt; cat user.txt').done(function(data) {
+                data = $.trim(data)
+                $('#q').val(data)
+                $('.who').text(data)
+            })
+
+            // Show right form
+            $.ajax({
+              url: '../sqlite',
+              dataType: 'json',
+              data: {
+                'q': 'select * from sqlite_master'
+              }
+            }).done(function(results){
+                var got_table = false
+                for (var key in results) {
+                    var table = results[key]
+                    if (table.name == "twitter_followers" || table.name == "twitter_main") {
+                        got_table = true
+                        break
+                    }
+                }
+                if (got_table) {
+                    $('#get-settings').hide()
+                    $('#got-settings').show()
+                } else {
+                    $('#get-settings').show()
+                    $('#got-settings').hide()
+                }
+
+            }).fail(function(results) {
+                // this is bad as it will maks real errors - we have to show the form as
+                // no SQLite database gives an error
+                $('#get-settings').show()
+                $('#got-settings').hide()
+            })
+      }
+
       var escapeshell = function(cmd) {
         return "'"+cmd.replace(/'/g,"'\\''")+"'";
       };
       $(document).ready(function() {
+        // Get OAuth parameters that we need
         var settings = scraperwiki.readSettings()
         var callback_url
         var oauth_verifier
         scraperwiki.tool.getURL(function(our_url) {
             console.log(our_url)
-            // pull out OAuth parameters that we need
             var url = $.url(our_url)
             oauth_verifier = url.param('oauth_verifier')
             // remove query parameters for the callback URL, so they don't stack up if we
             // go multiple times to Twitter 
             callback_url = url.attr('base') + url.attr('path')
             // only when we have the callback URL, allow the submit button to be clicked
-            $("#submit").removeAttr("disabled")
+            $("#submit,#refresh,#clear-data").removeAttr("disabled")
         })
 
-        $.ajax({
-          url: '../sqlite',
-          dataType: 'json',
-          data: {
-            'q': 'select * from sqlite_master'
-          }
-        }).done(function(results){
-            for (var key in results) {
-                var table = results[key]
-                if (table.name == "twitter_followers" || table.name == "twitter_main") {
-                    var p = $('<p>').addClass('alert alert-warning').html("<b>Warning!</b> You have data in this dataset already. It will be erased if you run it again from here. Make a new dataset if you don't want to do that.")
-                    $('body').prepend(p)
-                    break
-                }
-            }
-        })
-
-        scraperwiki.exec('touch user.txt; cat user.txt').done(function(data) {
-            $('#q').val(data)
-        })
+        // Show the right form (get settings, or the refresh data one)
+        show_hide_stuff()
 
         $('#q').on('keypress', function(e){
           if(e.which == 13){
             $('#submit').trigger('click')
           }
+        })
+
+        $('#clear-data').on('click', function() {
+            $('pre,.alert,.help-inline').remove()
+            scraperwiki.exec("rm -fr scraperwiki.sqlite").done(function(content) {
+                show_hide_stuff()
+            })
         })
 
         $('#submit').on('click', function() {
@@ -111,8 +161,8 @@ p.loading {
             }
 
             // Pass various OAuth bits of data to the Python script that is going to do the work
-            $('.btn-primary').addClass('disabled').html('Loading&hellip;').attr('disabled', true)
-            scraperwiki.exec('echo ' + escapeshell(q) + '>user.txt; rm -fr scraperwiki.sqlite; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
+            $('#submit').addClass('disabled').html('Loading&hellip;').attr('disabled', true)
+            scraperwiki.exec('echo ' + escapeshell(q) + '>user.txt; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
                 console.log(content)
                 // Redirect to Twitter if we get a URL telling us to
                 if (content.match(/^https:\/\/api.twitter.com/)) {
@@ -120,23 +170,13 @@ p.loading {
                     return
                 }
 
-                // The script has happily done its work
-                if (content.match(/^all-done-ok/)) {
-                    scraperwiki.exec('crontab tool/crontab')
-                    var p = $('<p>').addClass('alert alert-success').html('<b>Twitter users imported!</b>')
-                    $('body').prepend(p)
-                    $('.btn-primary').html('Done')
-                    setTimeout(function() {
-                        var datasetUrl = "/dataset/" + scraperwiki.boxName
-                        scraperwiki.tool.redirect(datasetUrl)
-                    }, 1000)
-                    return
-                }
+                // We got the first lot successfully
                 if (content.match(/^first-few-ok/)) {
                     scraperwiki.exec('crontab tool/crontab')
-                    var p = $('<p>').addClass('alert alert-success').html('<b>First few users imported!</b> The rest will take a while, come back in at least an hour.')
+                    var p = $('<p>').addClass('alert alert-success').html('<b>First few users imported!</b> If there are more, they will trickle in over the coming hours.')
                     $('body').prepend(p)
-                    $('.btn-primary').html('Done')
+                    $('#submit').removeClass('disabled').html('Go!').attr('disabled', false)
+                    show_hide_stuff()
                     return
                 }
 
@@ -154,7 +194,7 @@ p.loading {
                     if (obj.errors[0].code == 34) {
                         $(".control-group").addClass('error')
                         $(".controls").append('<span class="help-inline">There isn\'t a Twitter user with that name.</span>')
-                        $('.btn-primary').removeClass('disabled').html('Try again!').attr('disabled', false)
+                        $('#submit').removeClass('disabled').html('Try again!').attr('disabled', false)
                         return
                     }
                     if (obj.errors[0].code == 88) {
@@ -165,7 +205,7 @@ p.loading {
                 }
             
                 // Otherwise an unknown error
-                $('.btn-primary').removeClass('disabled').html('Try again!').attr('disabled', false)
+                $('#submit').removeClass('disabled').html('Try again!').attr('disabled', false)
                 var p = $('<p>').addClass('alert alert-' + style).html(msg + ' Click here to show technical details.').on('click', function() {
                     $(this).next('pre').toggle()
                 }).css('cursor', 'pointer')
@@ -173,7 +213,7 @@ p.loading {
                 $('body').prepend(pre)
                 $('body').prepend(p)
                 return
-        });
+            });
         })
       })
     </script>
