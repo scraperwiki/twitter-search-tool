@@ -7,6 +7,7 @@ import sys
 import collections
 import dateutil.parser
 import requests
+import subprocess
 
 import scraperwiki
 
@@ -54,20 +55,23 @@ def oauth_url_dance(consumer_key, consumer_secret, callback_url, oauth_verifier,
     write_token_file(verified_token_filename, oauth_token, oauth_token_secret)
     return oauth_token, oauth_token_secret
 
-if not os.path.exists(CREDS_VERIFIED):
-    if len(sys.argv) < 3:
-        result = "need-oauth"
-    else:
-        (callback_url, oauth_verifier) = (sys.argv[1], sys.argv[2])
-        result = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, oauth_verifier, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
-    # a string means a URL for a redirect (otherwise we get a tuple back with auth tokens in)
-    if type(result) == str:
-        print result
-        requests.post("https://x.scraperwiki.com/api/status", data={'type':'error', 'message':'Authentication failed, fix in settings'})
-        sys.exit()
 
-oauth_token, oauth_token_secret = read_token_file(CREDS_VERIFIED)
-tw = twitter.Twitter(auth=twitter.OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET))
+def do_tool_oauth():
+    if not os.path.exists(CREDS_VERIFIED):
+        if len(sys.argv) < 3:
+            result = "need-oauth"
+        else:
+            (callback_url, oauth_verifier) = (sys.argv[1], sys.argv[2])
+            result = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, oauth_verifier, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
+        # a string means a URL for a redirect (otherwise we get a tuple back with auth tokens in)
+        if type(result) == str:
+            print result
+            requests.post("https://x.scraperwiki.com/api/status", data={'type':'error', 'message':'Authentication failed, fix in settings'})
+            sys.exit()
+
+    oauth_token, oauth_token_secret = read_token_file(CREDS_VERIFIED)
+    tw = twitter.Twitter(auth=twitter.OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET))
+    return tw
 
 # XXX We're going to need to check for exceptions like this and delete the auth files and reauth
 # You can get these exceptions either just above, or in the dance too - basically in the whole file...
@@ -102,17 +106,15 @@ def save_user(user, table_name):
 #########################################################################
 # Main code
 
-# Read parameters
-screen_name = open("user.txt").read().strip()
-
-# Do the hard work
 try:
+    # Connect to Twitter
+    tw = do_tool_oauth()
     # print json.dumps(tw.application.rate_limit_status())
+    screen_name = open("user.txt").read().strip()
 
     # Save data about followers...
 
     # always get the first page - right now that gets most recent new followers
-    #print "doing first page"
     result = tw.followers.list(screen_name=screen_name)
     for user in result['users']:
         save_user(user, "twitter_followers")
@@ -127,7 +129,6 @@ try:
     if in_cli:
         # then proceed with other pages from the cursor:
         while next_cursor != 0:
-            #print "doing next cursor", next_cursor
             result = tw.followers.list(screen_name=screen_name, cursor=next_cursor)
             for user in result['users']:
                 save_user(user, "twitter_followers")
@@ -139,6 +140,17 @@ try:
         sys.exit()
 
 except twitter.api.TwitterHTTPError, e:
+    if "Twitter sent status 401 for URL" in str(e):
+        # remove auth files and respawn
+        try:
+            os.remove(CREDS_PRE_VERIFIY)
+            os.remove(CREDS_VERIFIED)
+        except OSError:
+            # don't worry if the files aren't there
+            pass
+        subprocess.call(sys.argv)
+        sys.exit()
+
     print e.response_data
     obj = json.loads(e.response_data)
     # if (obj['errors'][0]['code'] == 34): # auth failed
