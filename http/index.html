@@ -73,6 +73,82 @@ p.loading {
     </div>
 
    <script>
+        var go_scrape = function() {
+            var btn = $(this)
+            var original_text = btn.text()
+
+            $('pre,.alert,.help-inline').remove()
+            $('.control-group').removeClass('error')
+
+            var q = $('#q').val()
+            q = q.replace(/^@/,'')
+            if (q.match(/[^a-zA-Z0-9_]/)) {
+                $(".control-group").addClass('error')
+                $(".controls").append('<span class="help-inline">Twitter user names only use the alphabet, numbers and _</span>')
+                return
+            }
+
+            // Pass various OAuth bits of data to the Python script that is going to do the work
+            btn.addClass('disabled').html('Loading&hellip;').attr('disabled', true)
+            scraperwiki.exec('echo ' + escapeshell(q) + '>user.txt; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
+                console.log(content)
+                // Redirect to Twitter if we get a URL telling us to
+                if (content.match(/^https:\/\/api.twitter.com/)) {
+                    scraperwiki.tool.redirect(content)
+                    return
+                }
+
+                // We got the first lot successfully
+                if (content.match(/^first-few-ok/)) {
+                    scraperwiki.exec('crontab tool/crontab')
+                    var msg = '<b>First few users imported!</b> If there are more, they will trickle in over the coming hours.'
+                    if (original_text == 'Refresh!') {
+                        var msg = '<b>Updated first few users!</b> If there are lots of followers, they are gradually refreshed over time.'
+                    }
+
+                    var p = $('<p>').addClass('alert alert-success').html(msg)
+                    $('body').prepend(p)
+                    btn.removeClass('disabled').text(original_text).attr('disabled', false)
+                    show_hide_stuff()
+                    return
+                }
+
+                var msg = "<b>Failed to import!</b>"
+                var style = "error"
+
+                // It's a JSON formatted error (from Twitter)
+                var obj
+                try {
+                    obj = JSON.parse(content)
+                } catch(e) {
+                    obj = null
+                }
+                if (obj) {
+                    if (obj.errors[0].code == 34) {
+                        $(".control-group").addClass('error')
+                        $(".controls").append('<span class="help-inline">There isn\'t a Twitter user with that name.</span>')
+                        btn.removeClass('disabled').html('Try again!').attr('disabled', false)
+                        return
+                    }
+                    if (obj.errors[0].code == 88) {
+                        msg = "<b>Twitter rate limit exceeded!</b> Try again in 15 minutes."
+                    } else {
+                        msg = "<b>Twitter error: </b>" + obj.errors[0].message + "."
+                    }    
+                }
+            
+                // Otherwise an unknown error
+                btn.removeClass('disabled').html('Try again!').attr('disabled', false)
+                var p = $('<p>').addClass('alert alert-' + style).html(msg + ' Click here to show technical details.').on('click', function() {
+                    $(this).next('pre').toggle()
+                }).css('cursor', 'pointer')
+                var pre = $('<pre>').html(content).hide()
+                $('body').prepend(pre)
+                $('body').prepend(p)
+                return
+            })
+        }
+
       var show_hide_stuff = function() {
             // Find out what user it is
             scraperwiki.exec('touch user.txt; cat user.txt').done(function(data) {
@@ -116,8 +192,8 @@ p.loading {
       var escapeshell = function(cmd) {
         return "'"+cmd.replace(/'/g,"'\\''")+"'";
       };
-      $(document).ready(function() {
-        // Get OAuth parameters that we need
+
+       // Get OAuth parameters that we need
         var settings = scraperwiki.readSettings()
         var callback_url
         var oauth_verifier
@@ -132,6 +208,7 @@ p.loading {
             $("#submit,#refresh,#clear-data").removeAttr("disabled")
         })
 
+      $(document).ready(function() {
         // Show the right form (get settings, or the refresh data one)
         show_hide_stuff()
 
@@ -143,79 +220,13 @@ p.loading {
 
         $('#clear-data').on('click', function() {
             $('pre,.alert,.help-inline').remove()
-            scraperwiki.exec("rm -fr scraperwiki.sqlite").done(function(content) {
+            scraperwiki.exec("crontab -r; rm -fr scraperwiki.sqlite").done(function(content) {
                 show_hide_stuff()
             })
         })
 
-        $('#submit').on('click', function() {
-            $('pre,.alert,.help-inline').remove()
-            $('.control-group').removeClass('error')
-
-            var q = $('#q').val()
-            q = q.replace(/^@/,'')
-            if (q.match(/[^a-zA-Z0-9_]/)) {
-                $(".control-group").addClass('error')
-                $(".controls").append('<span class="help-inline">Twitter user names only use the alphabet, numbers and _</span>')
-                return
-            }
-
-            // Pass various OAuth bits of data to the Python script that is going to do the work
-            $('#submit').addClass('disabled').html('Loading&hellip;').attr('disabled', true)
-            scraperwiki.exec('echo ' + escapeshell(q) + '>user.txt; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
-                console.log(content)
-                // Redirect to Twitter if we get a URL telling us to
-                if (content.match(/^https:\/\/api.twitter.com/)) {
-                    scraperwiki.tool.redirect(content)
-                    return
-                }
-
-                // We got the first lot successfully
-                if (content.match(/^first-few-ok/)) {
-                    scraperwiki.exec('crontab tool/crontab')
-                    var p = $('<p>').addClass('alert alert-success').html('<b>First few users imported!</b> If there are more, they will trickle in over the coming hours.')
-                    $('body').prepend(p)
-                    $('#submit').removeClass('disabled').html('Go!').attr('disabled', false)
-                    show_hide_stuff()
-                    return
-                }
-
-                var msg = "<b>Failed to import!</b>"
-                var style = "error"
-
-                // It's a JSON formatted error (from Twitter)
-                var obj
-                try {
-                    obj = JSON.parse(content)
-                } catch(e) {
-                    obj = null
-                }
-                if (obj) {
-                    if (obj.errors[0].code == 34) {
-                        $(".control-group").addClass('error')
-                        $(".controls").append('<span class="help-inline">There isn\'t a Twitter user with that name.</span>')
-                        $('#submit').removeClass('disabled').html('Try again!').attr('disabled', false)
-                        return
-                    }
-                    if (obj.errors[0].code == 88) {
-                        msg = "<b>Twitter rate limit exceeded!</b> Try again in 15 minutes."
-                    } else {
-                        msg = "<b>Twitter error: </b>" + obj.errors[0].message + "."
-                    }    
-                }
-            
-                // Otherwise an unknown error
-                $('#submit').removeClass('disabled').html('Try again!').attr('disabled', false)
-                var p = $('<p>').addClass('alert alert-' + style).html(msg + ' Click here to show technical details.').on('click', function() {
-                    $(this).next('pre').toggle()
-                }).css('cursor', 'pointer')
-                var pre = $('<pre>').html(content).hide()
-                $('body').prepend(pre)
-                $('body').prepend(p)
-                return
-            });
-        })
-      })
+        $('#submit,#refresh').on('click', go_scrape)
+    })
     </script>
 
   </body>
