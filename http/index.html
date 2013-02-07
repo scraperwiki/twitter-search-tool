@@ -112,9 +112,7 @@ p.loading {
 
             // Pass various OAuth bits of data to the Python script that is going to do the work
             $('.btn-primary').addClass('disabled').html('Loading&hellip;').attr('disabled', true)
-            var cmd = 'echo ' + escapeshell(q) + '>user.txt'
-            scraperwiki.exec(cmd)
-            scraperwiki.exec('rm -fr scraperwiki.sqlite; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
+            scraperwiki.exec('echo ' + escapeshell(q) + '>user.txt; rm -fr scraperwiki.sqlite; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
                 console.log(content)
                 // Redirect to Twitter if we get a URL telling us to
                 if (content.match(/^https:\/\/api.twitter.com/)) {
@@ -134,7 +132,7 @@ p.loading {
                     return
                 }
                 if (content.match(/^first-few-ok/)) {
-                    var p = $('<p>').addClass('alert alert-success').html('<b>First few users imported!</b> The rest will take a while, come back in an hour.')
+                    var p = $('<p>').addClass('alert alert-success').html('<b>First few users imported!</b> The rest will take a while, come back in at least an hour.')
                     $('body').prepend(p)
                     $('.btn-primary').html('Done')
                     return
