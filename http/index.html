@@ -73,7 +73,10 @@ p.loading {
     </div>
 
    <script>
-        var go_scrape = function() {
+        // Event function for when they click on either the Go! or the Refresh buttons.
+        // Calls out to the Python script get.py, which does the actual Twitter
+        // calling. 
+        var scrape_action = function() {
             var btn = $(this)
             var original_text = btn.text()
 
@@ -225,7 +228,7 @@ p.loading {
             })
         })
 
-        $('#submit,#refresh').on('click', go_scrape)
+        $('#submit,#refresh').on('click', scrape_action)
     })
     </script>
 
