@@ -154,13 +154,7 @@ p.loading {
             })
 
             // Show right form
-            $.ajax({
-              url: '../sqlite',
-              dataType: 'json',
-              data: {
-                'q': 'select * from sqlite_master'
-              }
-            }).done(function(results){
+            scraperwiki.sql('select * from sqlite_master', function(results){
                 var got_table = false
                 for (var key in results) {
                     var table = results[key]
@@ -177,8 +171,8 @@ p.loading {
                     $('#got-settings').hide()
                 }
 
-            }).fail(function(results) {
-                // this is bad as it will maks real errors - we have to show the form as
+            }, function(results) {
+                // this is bad as it will masks real errors - we have to show the form as
                 // no SQLite database gives an error
                 $('#get-settings').show()
                 $('#got-settings').hide()
