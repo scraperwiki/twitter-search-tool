@@ -111,26 +111,16 @@ p.loading {
 
                 var msg = "<b>Failed to import!</b>"
                 var style = "error"
-
-                // See if it's a JSON formatted error (passed back from Twitter)
-                var obj
-                try {
-                    obj = JSON.parse(content)
-                } catch(e) {
-                    obj = null
+                if (content.match(/^rate-limit/)) {
+                    msg = "<b>Twitter rate limit exceeded!</b> Try again in 15 minutes."
+                    style = 'warning'
                 }
-                if (obj) {
-                    if (obj.errors[0].code == 34) {
-                        $(".control-group").addClass('error')
-                        $(".controls").append('<span class="help-inline">There isn\'t a Twitter user with that name.</span>')
-                        btn.removeClass('disabled').html('Try again!').attr('disabled', false)
-                        return
-                    }
-                    if (obj.errors[0].code == 88) {
-                        msg = "<b>Twitter rate limit exceeded!</b> Try again in 15 minutes."
-                    } else {
-                        msg = "<b>Twitter error: </b>" + obj.errors[0].message + "."
-                    }    
+
+                if (content.match(/^not-there/)) {
+                    $(".control-group").addClass('error')
+                    $(".controls").append('<span class="help-inline">There isn\'t a Twitter user with that name.</span>')
+                    btn.removeClass('disabled').html('Try again!').attr('disabled', false)
+                    return
                 }
             
                 // Otherwise an unknown error - e.g. an unexpected stack trace
@@ -145,6 +135,7 @@ p.loading {
             })
         }
 
+      // Show the right form (get settings, or the refresh data one)
       var show_hide_stuff = function() {
             // Find out what user it is
             scraperwiki.exec('touch user.txt; cat user.txt').done(function(data) {
@@ -183,7 +174,7 @@ p.loading {
         return "'"+cmd.replace(/'/g,"'\\''")+"'";
       };
 
-       // Get OAuth parameters that we need
+       // Get OAuth parameters that we need from the URL
         var settings = scraperwiki.readSettings()
         var callback_url
         var oauth_verifier
@@ -199,7 +190,6 @@ p.loading {
         })
 
       $(document).ready(function() {
-        // Show the right form (get settings, or the refresh data one)
         show_hide_stuff()
 
         $('#q').on('keypress', function(e){

@@ -9,6 +9,7 @@ import dateutil.parser
 import requests
 import subprocess
 import httplib
+import sqlite3
 
 import scraperwiki
 
@@ -118,6 +119,57 @@ def set_status_and_exit(output, typ, message):
     sys.exit()
 
 
+# Store all our progress variables
+def save_status():
+    global current_batch, batch_got, batch_expected, next_cursor_followers
+
+    # Update progress indicators:
+    # ... how far are we in the most recent finished batch?
+    try:
+        batch_got = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch = %d" % current_batch - 1)[0]['c']
+    except:
+        batch_got = 0
+    # ... or if that was the first batch, the current running batch
+    if batch_got == 0:
+        try:
+            batch_got = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch = %d" % current_batch)[0]['c']
+        except:
+            batch_got = 0
+    profile = tw.users.lookup(screen_name=screen_name)
+    batch_expected = profile[0]['followers_count']
+
+    data = { 
+        'id': 'followers',
+        'current_batch': current_batch,
+        'batch_got': batch_got,
+        'batch_expected': batch_expected,
+        'next_cursor_followers': next_cursor_followers
+    }
+    scraperwiki.sqlite.save(['id'], data, table_name='status')
+
+# Load in all our progress variables
+def get_status():
+    global current_batch, batch_got, batch_expected, next_cursor_followers
+
+    current_batch = 1
+    next_cursor_followers = -1
+
+    try:
+        data = scraperwiki.sqlite.select("* from status where id='followers'")
+    except sqlite3.OperationalError, e:
+        if str(e) == "no such table: status":
+            return
+        raise
+    if len(data) == 0:
+        return
+    assert(len(data) == 1)
+    data = data[0]
+
+    current_batch = data['current_batch']
+    batch_got = data['batch_got']
+    batch_expected = data['batch_expected']
+    next_cursor_followers = data['next_cursor_followers']
+
 #########################################################################
 # Main code
 
@@ -127,32 +179,33 @@ try:
 
     # Connect to Twitter
     tw = do_tool_oauth()
-    print json.dumps(tw.application.rate_limit_status()) # if we ever need the rate limit status
 
     # A batch is one scan through the list of followers - we have to scan as we only
     # get 20 per API call, and have 15 API calls / 15 minutes (as of Feb 2013).
     # The cursor is Twitter's identifier of where in the current batch we are.
-    current_batch = scraperwiki.sqlite.get_var('current_batch', 1)
-    next_cursor = scraperwiki.sqlite.get_var('next_cursor_followers', -1)
-    next_cursor = -1
+    get_status()
 
     # Get as many pages in the batch as we can (most likely 15!)
     while True:
-        if next_cursor == -1:
+        #raise httplib.IncompleteRead('hi') # for testing
+
+        if next_cursor_followers == -1:
             result = tw.followers.list(screen_name=screen_name)
         else:
-            result = tw.followers.list(screen_name=screen_name, cursor=next_cursor)
+            result = tw.followers.list(screen_name=screen_name, cursor=next_cursor_followers)
         pages_got += 1
         for user in result['users']:
             save_user(current_batch, user, "twitter_followers")
-        next_cursor = result['next_cursor']
-        scraperwiki.sqlite.save_var('next_cursor_followers', next_cursor)
+        next_cursor_followers = result['next_cursor']
+        save_status()
 
-        if next_cursor == 0:
+        # While debugging, only do one page to avoid rate limits by uncommenting this:
+        # break
+
+        if next_cursor_followers == 0:
             # We've finished a batch
             current_batch += 1
-            scraperwiki.sqlite.save_var('current_batch', current_batch)
-            scraperwiki.sqlite.save_var('next_cursor_followers', -1)
+            save_status()
             break
 
 except twitter.api.TwitterHTTPError, e:
@@ -166,41 +219,25 @@ except twitter.api.TwitterHTTPError, e:
     if (code in [32, 89]):
         clear_auth_and_restart()
     # rate limit exceeded
-    if (code == 88 and pages_got > 0):
+    if code == 34:
+        set_status_and_exit('not-there', 'error', 'User not on Twitter')
+    if code == 88:
         # provided we got at least one page, rate limit isn't an error but expected
-        pass
+        if pages_got == 0:
+            set_status_and_exit('rate-limit', 'error', 'Twitter limited our rate')
     else:
-        set_status_and_exit(e.response_data, 'error', obj['errors'][0]['message'])
+        # anything else is an unexpected error - if ones occur a lot, add the above instead
+        raise
 except httplib.IncompleteRead, e:
     # I think this is effectively a rate limit error - so only count if it was first error
     if pages_got == 0:
-        faked_response_data = {"errors":[{"message":"Twitter broke the connection","code":-100}]}
-        set_status_and_exit(faked_response_data, 'error', "Twitter unexpectedly broke the connection")
-
-# Save data about the source user in another table (e.g. has total number of followers in it)
-profile = tw.users.lookup(screen_name=screen_name)
-save_user(None, profile[0], "twitter_main")
-
-# How far are we in the most recent finished batch?
-try:
-    got_so_far = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch = %d" % current_batch - 1)[0]['c']
-except:
-    got_so_far = 0
-# Or if that was the first batch, the current running batch
-if got_so_far == 0:
-    try:
-        got_so_far = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch = %d" % current_batch)[0]['c']
-    except:
-        got_so_far = 0
-expected = profile[0]['followers_count']
-scraperwiki.sqlite.save_var('batch_got', got_so_far)
-scraperwiki.sqlite.save_var('batch_expected', expected)
+        set_status_and_exit('rate-limit', 'error', 'Twitter broke the conncetion')
 
 # Save progress message
-if got_so_far == expected:
+if batch_got == batch_expected:
     set_status_and_exit("ok-updating", 'ok', "Fully up to date")
 else:
-    set_status_and_exit("ok-updating", 'error', "Running... %d/%d" % (got_so_far, expected))
+    set_status_and_exit("ok-updating", 'error', "Running... %d/%d" % (batch_got, batch_expected))
 
 
 
