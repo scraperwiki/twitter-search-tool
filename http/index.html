@@ -102,24 +102,17 @@ p.loading {
                 }
 
                 // We got the first lot successfully
-                if (content.match(/^first-few-ok/)) {
+                if (content.match(/^ok-updating/)) {
                     scraperwiki.exec('crontab tool/crontab')
-                    var msg = '<b>First few users imported!</b> If there are more, they will trickle in over the coming hours.'
-                    if (original_text == 'Refresh!') {
-                        var msg = '<b>Updated first few users!</b> If there are lots of followers, they are gradually refreshed over time.'
-                    }
-
-                    var p = $('<p>').addClass('alert alert-success').html(msg)
-                    $('body').prepend(p)
-                    btn.removeClass('disabled').text(original_text).attr('disabled', false)
-                    show_hide_stuff()
+                    var datasetUrl = "/dataset/" + scraperwiki.boxName
+                    scraperwiki.tool.redirect(datasetUrl)
                     return
                 }
 
                 var msg = "<b>Failed to import!</b>"
                 var style = "error"
 
-                // It's a JSON formatted error (from Twitter)
+                // See if it's a JSON formatted error (passed back from Twitter)
                 var obj
                 try {
                     obj = JSON.parse(content)
@@ -140,7 +133,7 @@ p.loading {
                     }    
                 }
             
-                // Otherwise an unknown error
+                // Otherwise an unknown error - e.g. an unexpected stack trace
                 btn.removeClass('disabled').html('Try again!').attr('disabled', false)
                 var p = $('<p>').addClass('alert alert-' + style).html(msg + ' Click here to show technical details.').on('click', function() {
                     $(this).next('pre').toggle()
