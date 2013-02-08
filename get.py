@@ -62,7 +62,7 @@ def do_tool_oauth():
             result = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, oauth_verifier, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
         # a string means a URL for a redirect (otherwise we get a tuple back with auth tokens in)
         if type(result) == str:
-            set_status_and_exit(result, 'error', 'Authentication failed, fix in settings')
+            set_status_and_exit('auth-redirect', 'error', 'Authentication failed, fix in settings', { 'url': result } )
 
     oauth_token, oauth_token_secret = read_token_file(CREDS_VERIFIED)
     tw = twitter.Twitter(auth=twitter.OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET))
@@ -112,16 +112,23 @@ def clear_auth_and_restart():
     sys.exit()
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
-def set_status_and_exit(output, typ, message):
-    print output
-    #print typ, message
+def set_status_and_exit(status, typ, message, extra = {}):
+    global current_status
+
+    extra['status'] = status
+    print json.dumps(extra)
+
     requests.post("https://x.scraperwiki.com/api/status", data={'type':typ, 'message':message})
+
+    current_status = status
+    save_status()
+
     sys.exit()
 
 
 # Store all our progress variables
 def save_status():
-    global current_batch, batch_got, batch_expected, next_cursor_followers
+    global current_batch, next_cursor, batch_got, batch_expected, current_status
 
     # Update progress indicators:
     # ... how far are we in the most recent finished batch?
@@ -135,24 +142,26 @@ def save_status():
             batch_got = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch = %d" % current_batch)[0]['c']
         except:
             batch_got = 0
-    profile = tw.users.lookup(screen_name=screen_name)
-    batch_expected = profile[0]['followers_count']
 
     data = { 
         'id': 'followers',
         'current_batch': current_batch,
+        'next_cursor': next_cursor,
         'batch_got': batch_got,
         'batch_expected': batch_expected,
-        'next_cursor_followers': next_cursor_followers
+        'current_status': current_status
     }
     scraperwiki.sqlite.save(['id'], data, table_name='status')
 
 # Load in all our progress variables
 def get_status():
-    global current_batch, batch_got, batch_expected, next_cursor_followers
+    global current_batch, next_cursor, batch_got, batch_expected, current_status
 
     current_batch = 1
-    next_cursor_followers = -1
+    next_cursor = -1
+    batch_got = 0
+    batch_expected = 0
+    current_status = 'not-there'
 
     try:
         data = scraperwiki.sqlite.select("* from status where id='followers'")
@@ -166,9 +175,10 @@ def get_status():
     data = data[0]
 
     current_batch = data['current_batch']
+    next_cursor = data['next_cursor']
     batch_got = data['batch_got']
     batch_expected = data['batch_expected']
-    next_cursor_followers = data['next_cursor_followers']
+    current_status = data['current_status']
 
 #########################################################################
 # Main code
@@ -185,25 +195,30 @@ try:
     # The cursor is Twitter's identifier of where in the current batch we are.
     get_status()
 
+    # Look up latest followers count
+    profile = tw.users.lookup(screen_name=screen_name)
+    batch_expected = profile[0]['followers_count']
+
     # Get as many pages in the batch as we can (most likely 15!)
     while True:
         #raise httplib.IncompleteRead('hi') # for testing
 
-        if next_cursor_followers == -1:
+        if next_cursor == -1:
             result = tw.followers.list(screen_name=screen_name)
         else:
-            result = tw.followers.list(screen_name=screen_name, cursor=next_cursor_followers)
+            result = tw.followers.list(screen_name=screen_name, cursor=next_cursor)
         pages_got += 1
         for user in result['users']:
             save_user(current_batch, user, "twitter_followers")
-        next_cursor_followers = result['next_cursor']
+        next_cursor = result['next_cursor']
         save_status()
 
         # While debugging, only do one page to avoid rate limits by uncommenting this:
         # break
 
-        if next_cursor_followers == 0:
+        if next_cursor == 0:
             # We've finished a batch
+            next_cursor = -1
             current_batch += 1
             save_status()
             break
