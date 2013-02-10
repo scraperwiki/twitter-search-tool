@@ -47,10 +47,20 @@ p.loading {
     </div>
 
      <div class="settings" id="settings-working" style="display:none">
-         <h2>Getting @<span class="who">...</span>'s followers</h2>
-         <p>New followers are added once per hour. 
+         <div id="got-some">
+             <h2>Getting @<span class="who">...</span>'s followers</h2>
+
+             <p>So far have got <span class="batch_got"></span>/<span class="batch_expected"></span>. 
+             It'll take about <span id="eta"></span>.
+             </p>
+         </div>
+         <div id="got-all">
+             <h2>Got @<span class="who">...</span>'s followers</h2>
+
+             <p>They have <span class="batch_got"></span> followers. New ones will be added automatically.</p>
+         </div>
+
          <button class="btn btn-primary" type="button" id="refresh" disabled="disabled">Refresh!</button>
-         <p>If the user has a large number of followers they gradually trickle in.</p>
     </div>
 
     <div class="settings" id="settings-get" style="display:none">
@@ -71,7 +81,7 @@ p.loading {
          <hr>
          <h2>Change settings</h2>
          <button class="btn btn-danger" type="button" id="clear-data" disabled="disabled">Clear data</button>
-         to start over. Alternatively, make a new dataset.</p>
+         to start over. Alternatively, make another dataset.</p>
     </div>
 
    <script>
@@ -147,18 +157,44 @@ p.loading {
 
                 // Show right form
                 scraperwiki.sql('select * from status where id = "followers"', function(results){
+                    results = results[0]
+                    console.log(results)
+
                     $('.settings').hide()
 
                     $('#reauthenticate').removeClass('disabled').html('Reauthenticate').attr('disabled', false)
                     $('#refresh').removeClass('disabled').html('Refresh!').attr('disabled', false)
                     $('#submit').removeClass('disabled').html('Go!').attr('disabled', false)
                     $('#clear-data').removeClass('disabled').html('Clear data').attr('disabled', false)
+        
+                    $('.batch_got').text(results['batch_got'])
+                    $('.batch_expected').text(results['batch_expected'])
+                    var tweets_per_request = 20
+                    var request_per_hour = 15 // we run @hourly in cron, and grab 15 each time until Twitter stops us
+                    var hours_left = Math.round((results['batch_expected'] - results['batch_got']) / request_per_hour / tweets_per_request)
+                    var days_left = Math.round(hours_left / 24)
+                    if (hours_left <= 1) {
+                        eta = "1 hour"
+                    } else if (hours_left < 13) {
+                        eta = hours_left + " hours"
+                    } else if (days_left < 2) {
+                        eta = "1 day"
+                    } else {
+                        eta = days_left + " days"
+                    }
+                    $('#eta').text(eta)
+
+                    $('#got-some').hide()
+                    $('#got-all').hide()
+                    if (results['batch_got'] == results['batch_expected']) {
+                        $('#got-all').show()
+                    } else {
+                        $('#got-some').show()
+                    }
 
                     $('pre,.alert,.help-inline').remove()
                     $('.control-group').removeClass('error')
 
-                    results = results[0]
-                    console.log(results)
                     if (results['current_status'] == 'auth-redirect') {
                         $('#settings-auth').show()
                         $('#settings-clear').show()
