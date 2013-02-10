@@ -10,7 +10,9 @@ import requests
 import subprocess
 import httplib
 import sqlite3
-import shutil
+import fcntl
+import signal
+import time
 
 from secrets import *
 
@@ -19,6 +21,16 @@ from secrets import *
 # http://mike.verdone.ca/twitter/
 # https://github.com/sixohsix/twitter
 import twitter
+
+# Trying to use flock to make sure this only runs once
+#signal.alarm(10)
+#fd = open("box.json", "r")
+#print "waiting for lock"
+#fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
+#signal.alarm(0)
+#
+#print "ok :)"
+#time.sleep(100)
 
 #########################################################################
 # Authentication to Twitter
