@@ -85,6 +85,46 @@ p.loading {
     </div>
 
    <script>
+        // Show very general purpose error
+        var something_went_wrong = function(content) {
+            fix_button_texts()
+            $('pre,.alert,.help-inline').remove()
+            var p = $('<p>').addClass('alert alert-error').html('<b>Something went wrong!</b> Click here to show technical details.').on('click', function() {
+                $(this).next('pre').toggle()
+            }).css('cursor', 'pointer')
+            var pre = $('<pre>').html(content).hide()
+            $('body').prepend(pre)
+            $('body').prepend(p)
+        }
+
+        // Handle response from exec of get.py
+        var done_exec_main = function(content) {
+            console.log(content)
+            try {
+                response = JSON.parse(content)
+
+                // Handle various known responses
+                if (response['status'] == 'auth-redirect') {
+                    scraperwiki.tool.redirect(response['url'])
+                    return
+                }
+
+                if (response['status'] == 'ok-updating') {
+                    var datasetUrl = "/dataset/" + scraperwiki.boxName
+                    scraperwiki.tool.redirect(datasetUrl)
+                    return
+                }
+
+                // Show whatever we would on loading page
+                // i.e. read status from database that get.py set
+                show_hide_stuff()
+            } catch(e) {
+                // Otherwise an unknown error - e.g. an unexpected stack trace
+                something_went_wrong(content)
+                return
+            }
+        }
+
         // Event function for when they click on the Go!, Refresh! or Reauthenticate buttons.
         // Calls out to the Python script get.py, which does the actual Twitter
         // calling. 
@@ -103,38 +143,12 @@ p.loading {
             $(this).addClass('disabled').html('Loading&hellip;').attr('disabled', true)
 
             // Pass various OAuth bits of data to the Python script that is going to do the work
-            scraperwiki.exec('echo ' + escapeshell(q) + '>user.txt; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
-                // Handle various known responses
-                console.log(content)
-                try {
-                    response = JSON.parse(content)
-
-                    if (response['status'] == 'auth-redirect') {
-                        scraperwiki.tool.redirect(response['url'])
-                        return
-                    }
-
-                    if (response['status'] == 'ok-updating') {
-                        var datasetUrl = "/dataset/" + scraperwiki.boxName
-                        scraperwiki.tool.redirect(datasetUrl)
-                        return
-                    }
-
-                    // Show whatever we would on loading page
-                    show_hide_stuff()
-                } catch(e) {
-                    // Otherwise an unknown error - e.g. an unexpected stack trace
-                    show_hide_stuff(function() {
-                        var p = $('<p>').addClass('alert alert-error').html('<b>Failed to import!</b> Click here to show technical details.').on('click', function() {
-                            $(this).next('pre').toggle()
-                        }).css('cursor', 'pointer')
-                        var pre = $('<pre>').html(content).hide()
-                        $('body').prepend(pre)
-                        $('body').prepend(p)
-                    })
-                    return
+            scraperwiki.exec('echo ' + escapeshell(q) + '>user.txt; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"', 
+                done_exec_main, 
+                function(obj, err, exception) {
+                    something_went_wrong(err + "! " + exception)
                 }
-            })
+            )
         }
 
         // Clear data and start again
@@ -142,15 +156,26 @@ p.loading {
             $(this).addClass('disabled').html('Clearing&hellip;').attr('disabled', true)
             $('pre,.alert,.help-inline').remove()
 
-            scraperwiki.exec("tool/get.py clean-slate").done(function(content) {
-                show_hide_stuff()
-            })
+            scraperwiki.exec("tool/get.py clean-slate",
+                done_exec_main,
+                function(obj, err, exception) {
+                    something_went_wrong(err + "! " + exception) 
+                }
+            )
         }
 
+        // Buttons show "Loading..." and so on while working. This puts all their text back after.
+        var fix_button_texts = function() {
+            $('#reauthenticate').removeClass('disabled').html('Reauthenticate').attr('disabled', false)
+            $('#refresh').removeClass('disabled').html('Refresh!').attr('disabled', false)
+            $('#submit').removeClass('disabled').html('Go!').attr('disabled', false)
+            $('#clear-data').removeClass('disabled').html('Clear data').attr('disabled', false)
+        }
+ 
         // Show the right form (get settings, or the refresh data one)
         var show_hide_stuff = function(done) {
             // Find out what user it is
-            scraperwiki.exec('touch user.txt; cat user.txt').done(function(data) {
+            scraperwiki.exec('touch user.txt; cat user.txt', function(data) {
                 data = $.trim(data)
                 $('#q').val(data)
                 $('.who').text(data)
@@ -161,12 +186,8 @@ p.loading {
                     console.log(results)
 
                     $('.settings').hide()
-
-                    $('#reauthenticate').removeClass('disabled').html('Reauthenticate').attr('disabled', false)
-                    $('#refresh').removeClass('disabled').html('Refresh!').attr('disabled', false)
-                    $('#submit').removeClass('disabled').html('Go!').attr('disabled', false)
-                    $('#clear-data').removeClass('disabled').html('Clear data').attr('disabled', false)
-        
+                    fix_button_texts()
+       
                     $('.batch_got').text(results['batch_got'])
                     $('.batch_expected').text(results['batch_expected'])
                     var tweets_per_request = 20
@@ -230,6 +251,8 @@ p.loading {
                         done()
                     }
                 })
+            }, function(obj, err, exception) {
+               something_went_wrong(err + "! " + exception)
             })
         }
 

@@ -13,6 +13,8 @@ import sqlite3
 
 from secrets import *
 
+raise Exception('foo')
+
 # Make sure you install this version of "twitter":
 # http://pypi.python.org/pypi/twitter
 # http://mike.verdone.ca/twitter/
