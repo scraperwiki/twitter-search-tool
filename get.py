@@ -252,7 +252,7 @@ except twitter.api.TwitterHTTPError, e:
     if code == 88:
         # provided we got at least one page, rate limit isn't an error but expected
         if pages_got == 0:
-            set_status_and_exit('rate-limit', 'error', 'Twitter limited our rate')
+            set_status_and_exit('rate-limit', 'error', 'Twitter is rate limiting you')
     else:
         # anything else is an unexpected error - if ones occur a lot, add the above instead
         raise

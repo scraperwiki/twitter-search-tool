@@ -114,13 +114,14 @@ p.loading {
                     show_hide_stuff()
                 } catch(e) {
                     // Otherwise an unknown error - e.g. an unexpected stack trace
-                    var p = $('<p>').addClass('alert alert-error').html('<b>Failed to import!</b> Click here to show technical details.').on('click', function() {
-                        $(this).next('pre').toggle()
-                    }).css('cursor', 'pointer')
-                    var pre = $('<pre>').html(content).hide()
-                    $('body').prepend(pre)
-                    $('body').prepend(p)
-                    show_hide_stuff()
+                    show_hide_stuff(function() {
+                        var p = $('<p>').addClass('alert alert-error').html('<b>Failed to import!</b> Click here to show technical details.').on('click', function() {
+                            $(this).next('pre').toggle()
+                        }).css('cursor', 'pointer')
+                        var pre = $('<pre>').html(content).hide()
+                        $('body').prepend(pre)
+                        $('body').prepend(p)
+                    })
                     return
                 }
             })
@@ -137,7 +138,7 @@ p.loading {
         }
 
         // Show the right form (get settings, or the refresh data one)
-        var show_hide_stuff = function() {
+        var show_hide_stuff = function(done) {
             // Find out what user it is
             scraperwiki.exec('touch user.txt; cat user.txt').done(function(data) {
                 data = $.trim(data)
@@ -182,10 +183,16 @@ p.loading {
                     } else {
                         alert("Unknown internal state: " + results['current_status'])
                     }
+                    if (done) {
+                        done()
+                    }
                 }, function(results) {
                     // this is bad as it will masks real errors - we have to show the form as
                     // no SQLite database gives an error
                     $('#settings-get').show()
+                    if (done) {
+                        done()
+                    }
                 })
             })
         }
