@@ -60,7 +60,7 @@ def do_tool_oauth():
             result = oauth_url_dance(CONSUMER_KEY, CONSUMER_SECRET, callback_url, oauth_verifier, CREDS_PRE_VERIFIY, CREDS_VERIFIED)
         # a string means a URL for a redirect (otherwise we get a tuple back with auth tokens in)
         if type(result) == str:
-            set_status_and_exit('auth-redirect', 'error', 'Authentication failed, fix in settings', { 'url': result } )
+            set_status_and_exit('auth-redirect', 'error', 'Permission needed from Twitter', { 'url': result } )
 
     oauth_token, oauth_token_secret = read_token_file(CREDS_VERIFIED)
     tw = twitter.Twitter(auth=twitter.OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET))

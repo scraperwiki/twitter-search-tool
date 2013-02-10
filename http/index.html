@@ -79,9 +79,6 @@ p.loading {
         // Calls out to the Python script get.py, which does the actual Twitter
         // calling. 
         var scrape_action = function() {
-            var btn = $(this)
-            var original_text = btn.text()
-
             $('pre,.alert,.help-inline').remove()
             $('.control-group').removeClass('error')
 
@@ -93,8 +90,9 @@ p.loading {
                 return
             }
 
+            $(this).addClass('disabled').html('Loading&hellip;').attr('disabled', true)
+
             // Pass various OAuth bits of data to the Python script that is going to do the work
-            btn.addClass('disabled').html('Loading&hellip;').attr('disabled', true)
             scraperwiki.exec('echo ' + escapeshell(q) + '>user.txt; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"').done(function(content) {
                 // Handle various known responses
                 console.log(content)
@@ -116,15 +114,25 @@ p.loading {
                     show_hide_stuff()
                 } catch(e) {
                     // Otherwise an unknown error - e.g. an unexpected stack trace
-                    btn.removeClass('disabled').html('Try again!').attr('disabled', false)
                     var p = $('<p>').addClass('alert alert-error').html('<b>Failed to import!</b> Click here to show technical details.').on('click', function() {
                         $(this).next('pre').toggle()
                     }).css('cursor', 'pointer')
                     var pre = $('<pre>').html(content).hide()
                     $('body').prepend(pre)
                     $('body').prepend(p)
+                    show_hide_stuff()
                     return
                 }
+            })
+        }
+
+        // Clear data and start again
+        var clear_action = function() {
+            $(this).addClass('disabled').html('Clearing&hellip;').attr('disabled', true)
+            $('pre,.alert,.help-inline').remove()
+
+            scraperwiki.exec("tool/get.py clean-slate").done(function(content) {
+                show_hide_stuff()
             })
         }
 
@@ -137,8 +145,14 @@ p.loading {
                 $('.who').text(data)
 
                 // Show right form
-                $('.settings').hide()
                 scraperwiki.sql('select * from status where id = "followers"', function(results){
+                    $('.settings').hide()
+
+                    $('#reauthenticate').removeClass('disabled').html('Reauthenticate').attr('disabled', false)
+                    $('#refresh').removeClass('disabled').html('Refresh!').attr('disabled', false)
+                    $('#submit').removeClass('disabled').html('Go!').attr('disabled', false)
+                    $('#clear-data').removeClass('disabled').html('Clear data').attr('disabled', false)
+
                     $('pre,.alert,.help-inline').remove()
                     $('.control-group').removeClass('error')
 
@@ -204,13 +218,7 @@ p.loading {
               }
             })
 
-            $('#clear-data').on('click', function() {
-                $('pre,.alert,.help-inline').remove()
-                scraperwiki.exec("tool/get.py clean-slate").done(function(content) {
-                    show_hide_stuff()
-                })
-            })
-
+            $('#clear-data').on('click', clear_action)
             $('#submit,#reauthenticate,#refresh').on('click', scrape_action)
         })
     </script>
