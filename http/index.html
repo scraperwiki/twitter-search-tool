@@ -40,25 +40,20 @@ p.loading {
   </head>
   <body>
 
-     <div id="got-settings" style="display:none">
-         <h2>Getting @<span class="who">...</span>'s followers</h2>
-
-         <p>New followers are added once per hour. 
-
-         <button class="btn btn-primary" type="button" id="refresh" disabled="disabled">Refresh!</button> (also fixes any authentication issues)
-
-         <p>If the user has a large number of followers they gradually trickle in.</p>
-
-         <hr>
-
-         <h2>Change settings</h2>
-
-         <p>You need to clear the current data to change the settings. Alternatively, make a new dataset.</p>
-
-         <button class="btn btn-danger" type="button" id="clear-data" disabled="disabled">Clear data</button>
+     <div class="settings" id="settings-auth" style="display:none">
+         <h2>Permission needed from Twitter</h2>
+         <p>To carry on getting data, please
+         <button class="btn btn-primary" type="button" id="reauthenticate" disabled="disabled">Reauthenticate</button> with Twitter.
     </div>
 
-    <div id="get-settings" style="display:none">
+     <div class="settings" id="settings-working" style="display:none">
+         <h2>Getting @<span class="who">...</span>'s followers</h2>
+         <p>New followers are added once per hour. 
+         <button class="btn btn-primary" type="button" id="refresh" disabled="disabled">Refresh!</button>
+         <p>If the user has a large number of followers they gradually trickle in.</p>
+    </div>
+
+    <div class="settings" id="settings-get" style="display:none">
         <h2>Get Twitter followers</h2>
 
         <div class="form-horizontal">
@@ -72,8 +67,15 @@ p.loading {
         </div>
     </div>
 
+    <div class="settings" id="settings-clear" style="display:none">
+         <hr>
+         <h2>Change settings</h2>
+         <button class="btn btn-danger" type="button" id="clear-data" disabled="disabled">Clear data</button>
+         to start over. Alternatively, make a new dataset.</p>
+    </div>
+
    <script>
-        // Event function for when they click on either the Go! or the Refresh buttons.
+        // Event function for when they click on the Go!, Refresh! or Reauthenticate buttons.
         // Calls out to the Python script get.py, which does the actual Twitter
         // calling. 
         var scrape_action = function() {
@@ -98,89 +100,87 @@ p.loading {
                 console.log(content)
                 try {
                     response = JSON.parse(content)
+
+                    if (response['status'] == 'auth-redirect') {
+                        scraperwiki.tool.redirect(response['url'])
+                        return
+                    }
+
+                    if (response['status'] == 'ok-updating') {
+                        var datasetUrl = "/dataset/" + scraperwiki.boxName
+                        scraperwiki.tool.redirect(datasetUrl)
+                        return
+                    }
+
+                    // Show whatever we would on loading page
+                    show_hide_stuff()
                 } catch(e) {
-                    response = {'status': 'unknown'}
-                }
-
-                if (response['status'] == 'auth-redirect') {
-                    scraperwiki.tool.redirect(response['url'])
-                    return
-                }
-
-                if (response['status'] == 'ok-updating') {
-                    scraperwiki.exec('crontab tool/crontab')
-                    var datasetUrl = "/dataset/" + scraperwiki.boxName
-                    scraperwiki.tool.redirect(datasetUrl)
-                    return
-                }
-
-                if (response['status'] == 'not-there') {
-                    // XXX this doesn't shown when not on the config screen
-                    $(".control-group").addClass('error')
-                    $(".controls").append('<span class="help-inline">There isn\'t a Twitter user with that name.</span>')
+                    // Otherwise an unknown error - e.g. an unexpected stack trace
                     btn.removeClass('disabled').html('Try again!').attr('disabled', false)
+                    var p = $('<p>').addClass('alert alert-error').html('<b>Failed to import!</b> Click here to show technical details.').on('click', function() {
+                        $(this).next('pre').toggle()
+                    }).css('cursor', 'pointer')
+                    var pre = $('<pre>').html(content).hide()
+                    $('body').prepend(pre)
+                    $('body').prepend(p)
                     return
                 }
-            
-                var msg = "<b>Failed to import!</b>"
-                var style = "error"
-                if (response['status'] == 'rate-limit') {
-                    msg = "<b>Twitter rate limit exceeded!</b> Try again in 15 minutes."
-                    style = 'warning'
-                }
-
-                // Otherwise an unknown error - e.g. an unexpected stack trace
-                btn.removeClass('disabled').html('Try again!').attr('disabled', false)
-                var p = $('<p>').addClass('alert alert-' + style).html(msg + ' Click here to show technical details.').on('click', function() {
-                    $(this).next('pre').toggle()
-                }).css('cursor', 'pointer')
-                var pre = $('<pre>').html(content).hide()
-                $('body').prepend(pre)
-                $('body').prepend(p)
-                return
             })
         }
 
-      // Show the right form (get settings, or the refresh data one)
-      var show_hide_stuff = function() {
+        // Show the right form (get settings, or the refresh data one)
+        var show_hide_stuff = function() {
             // Find out what user it is
             scraperwiki.exec('touch user.txt; cat user.txt').done(function(data) {
                 data = $.trim(data)
                 $('#q').val(data)
                 $('.who').text(data)
-            })
 
-            // Show right form
-            scraperwiki.sql('select * from sqlite_master', function(results){
-                var got_table = false
-                for (var key in results) {
-                    var table = results[key]
-                    if (table.name == "twitter_followers" || table.name == "twitter_main") {
-                        got_table = true
-                        break
+                // Show right form
+                $('.settings').hide()
+                scraperwiki.sql('select * from status where id = "followers"', function(results){
+                    $('pre,.alert,.help-inline').remove()
+                    $('.control-group').removeClass('error')
+
+                    results = results[0]
+                    console.log(results)
+                    if (results['current_status'] == 'auth-redirect') {
+                        $('#settings-auth').show()
+                        $('#settings-clear').show()
+                        // if during auth, click it
+                        if (oauth_verifier) {
+                            $("#reauthenticate").trigger("click")
+                        }
+                    } else if (results['current_status'] == 'not-there') {
+                        $('#settings-get').show()
+                        var p = $('<p>').addClass('alert alert-error').html("<b>User not found on Twitter!</b> Check the spelling and that they have an account and try again.")
+                        $('body').prepend(p)
+                    } else if (results['current_status'] == 'rate-limit') {
+                        $('#settings-working').show()
+                        var p = $('<p>').addClass('alert alert-warning').html("<b>Twitter is rate limiting you!</b> This can happen if you're running lots of Twitter tools, or refreshing them a lot.")
+                        $('body').prepend(p)
+                        $('#settings-clear').show()
+                    } else if (results['current_status'] == 'ok-updating') {
+                        $('#settings-working').show()
+                        $('#settings-clear').show()
+                    } else if (results['current_status'] == 'clean-slate') {
+                        $('#settings-get').show()
+                    } else {
+                        alert("Unknown internal state: " + results['current_status'])
                     }
-                }
-                if (got_table) {
-                    $('#get-settings').hide()
-                    $('#got-settings').show()
-                } else {
-                    $('#get-settings').show()
-                    $('#got-settings').hide()
-                }
-
-            }, function(results) {
-                // this is bad as it will masks real errors - we have to show the form as
-                // no SQLite database gives an error
-                $('#get-settings').show()
-                $('#got-settings').hide()
+                }, function(results) {
+                    // this is bad as it will masks real errors - we have to show the form as
+                    // no SQLite database gives an error
+                    $('#settings-get').show()
+                })
             })
-      }
+        }
 
-      var escapeshell = function(cmd) {
-        return "'"+cmd.replace(/'/g,"'\\''")+"'";
-      };
+        var escapeshell = function(cmd) {
+            return "'"+cmd.replace(/'/g,"'\\''")+"'";
+        };
 
-       // Get OAuth parameters that we need from the URL
+        // Get OAuth parameters that we need from the URL
         var settings = scraperwiki.readSettings()
         var callback_url
         var oauth_verifier
@@ -192,28 +192,30 @@ p.loading {
             // go multiple times to Twitter 
             callback_url = url.attr('base') + url.attr('path')
             // only when we have the callback URL, allow the submit button to be clicked
-            $("#submit,#refresh,#clear-data").removeAttr("disabled")
+            $("#submit,#refresh,#reauthenticate,#clear-data").removeAttr("disabled")
         })
 
-      $(document).ready(function() {
-        show_hide_stuff()
+        $(document).ready(function() {
+            show_hide_stuff()
 
-        $('#q').on('keypress', function(e){
-          if(e.which == 13){
-            $('#submit').trigger('click')
-          }
-        })
-
-        $('#clear-data').on('click', function() {
-            $('pre,.alert,.help-inline').remove()
-            scraperwiki.exec("crontab -r; rm -fr scraperwiki.sqlite").done(function(content) {
-                show_hide_stuff()
+            $('#q').on('keypress', function(e){
+              if(e.which == 13){
+                $('#submit').trigger('click')
+              }
             })
-        })
 
-        $('#submit,#refresh').on('click', scrape_action)
-    })
+            $('#clear-data').on('click', function() {
+                $('pre,.alert,.help-inline').remove()
+                scraperwiki.exec("tool/get.py clean-slate").done(function(content) {
+                    show_hide_stuff()
+                })
+            })
+
+            $('#submit,#reauthenticate,#refresh').on('click', scrape_action)
+        })
     </script>
 
   </body>
 </html>
+
+

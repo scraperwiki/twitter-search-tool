@@ -10,16 +10,14 @@ import requests
 import subprocess
 import httplib
 import sqlite3
-
-import scraperwiki
+import shutil
 
 from secrets import *
 
-# Make sure you install "twitter":
+# Make sure you install this version of "twitter":
 # http://pypi.python.org/pypi/twitter
 # http://mike.verdone.ca/twitter/
 # https://github.com/sixohsix/twitter
-# Which also is imported with:
 import twitter
 
 #########################################################################
@@ -154,14 +152,13 @@ def save_status():
     scraperwiki.sqlite.save(['id'], data, table_name='status')
 
 # Load in all our progress variables
+current_batch = 1
+next_cursor = -1
+batch_got = 0
+batch_expected = 0
+current_status = 'clean-slate'
 def get_status():
     global current_batch, next_cursor, batch_got, batch_expected, current_status
-
-    current_batch = 1
-    next_cursor = -1
-    batch_got = 0
-    batch_expected = 0
-    current_status = 'not-there'
 
     try:
         data = scraperwiki.sqlite.select("* from status where id='followers'")
@@ -185,6 +182,19 @@ def get_status():
 
 pages_got = 0
 try:
+    # Parameters to this command vary:
+    #   a. None: try and scrape Twitter followers
+    #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
+    #   c. "clean-slate": wipe database and start again
+    if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
+        os.system("rm -fr scraperwiki.sqlite; crontab -r >/dev/null 2>&1")
+        import scraperwiki
+        set_status_and_exit('clean-slate', 'error', 'No user set')
+        sys.exit()
+
+    import scraperwiki
+
+    # Get user we're working on from file we store it in
     screen_name = open("user.txt").read().strip()
 
     # Connect to Twitter
@@ -212,6 +222,9 @@ try:
             save_user(current_batch, user, "twitter_followers")
         next_cursor = result['next_cursor']
         save_status()
+
+        # Things basically working, so make sure we run again
+        os.system("crontab tool/crontab")
 
         # While debugging, only do one page to avoid rate limits by uncommenting this:
         # break
