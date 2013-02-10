@@ -1,0 +1,5 @@
+{
+  "displayName": "Get Twitter followers",
+  "gitUrl": "git@github.com:scraperwiki/twitter-follows-tool.git",
+  "description": "Any user's followers. You need a Twitter account."
+}
