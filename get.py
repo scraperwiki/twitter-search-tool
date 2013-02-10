@@ -209,6 +209,9 @@ try:
     profile = tw.users.lookup(screen_name=screen_name)
     batch_expected = profile[0]['followers_count']
 
+    # Things basically working, so make sure we run again
+    os.system("crontab tool/crontab")
+
     # Get as many pages in the batch as we can (most likely 15!)
     while True:
         #raise httplib.IncompleteRead('hi') # for testing
@@ -222,9 +225,6 @@ try:
             save_user(current_batch, user, "twitter_followers")
         next_cursor = result['next_cursor']
         save_status()
-
-        # Things basically working, so make sure we run again
-        os.system("crontab tool/crontab")
 
         # While debugging, only do one page to avoid rate limits by uncommenting this:
         # break
