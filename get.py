@@ -130,7 +130,7 @@ def save_status():
     # Update progress indicators:
     # ... how far are we in the most recent finished batch?
     try:
-        batch_got = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch = %d" % current_batch - 1)[0]['c']
+        batch_got = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch = %d" % (current_batch - 1))[0]['c']
     except:
         batch_got = 0
     # ... or if that was the first batch, the current running batch
