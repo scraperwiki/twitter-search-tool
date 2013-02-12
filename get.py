@@ -127,18 +127,16 @@ def set_status_and_exit(status, typ, message, extra = {}):
 def save_status():
     global current_batch, next_cursor, batch_got, batch_expected, current_status
 
-    # Update progress indicators:
-    # ... how far are we in the most recent finished batch?
+    # Update progress indicators...
+
+    # For number of users got, we count the total of:
+    # 1) all followers in the last full batch
+    # 2) all followers transferred into the new batch so far
+    # i.e. all those for whom batch >= (current_batch - 1)
     try:
-        batch_got = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch = %d" % (current_batch - 1))[0]['c']
+        batch_got = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch >= %d" % (current_batch - 1))[0]['c']
     except:
         batch_got = 0
-    # ... or if that was the first batch, the current running batch
-    if batch_got == 0:
-        try:
-            batch_got = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch = %d" % current_batch)[0]['c']
-        except:
-            batch_got = 0
 
     data = { 
         'id': 'followers',
@@ -203,6 +201,8 @@ try:
     # get 20 per API call, and have 15 API calls / 15 minutes (as of Feb 2013).
     # The cursor is Twitter's identifier of where in the current batch we are.
     get_status()
+    # Note that each user is only in the most recent batch they've been found in
+    # (we don't keep all the history)
 
     # Look up latest followers count
     profile = tw.users.lookup(screen_name=screen_name)
