@@ -1,2 +1,1 @@
-MAILTO=francis@scraperwiki.com
 @hourly ./tool/get.py
