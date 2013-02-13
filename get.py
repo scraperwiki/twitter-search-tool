@@ -80,17 +80,16 @@ def save_user(batch, user, table_name):
     data['id'] = user['id']
     data['name'] = user['name']
     data['screen_name'] = user['screen_name']
+    data['profile_image'] = user['profile_image_url_https'] # shorten to avoid wasting horizontal space
     data['created_at'] = dateutil.parser.parse(user['created_at'])
 
     data['description'] = user['description']
+    data['location'] = user['location']
     data['url'] = user['url']
-    data['profile_image_url_https'] = user['profile_image_url_https']
 
     data['statuses_count'] = user['statuses_count']
     data['followers_count'] = user['followers_count']
-    data['following_count'] = user['friends_count']
-
-    data['location'] = user['location']
+    data['following_count'] = user['friends_count'] # rename as "friends" is confusing to end users
 
     data['batch'] = batch
     
