@@ -53,7 +53,7 @@ var scrape_action = function() {
         return
     }
 
-    $(this).addClass('disabled').html('Loading&hellip;').attr('disabled', true)
+    $(this).addClass('loading').html('Loading&hellip;').attr('disabled', true)
 
     // Rename the dataset in the user interface
     // (only when they press the main submit button - not for refreshes)
@@ -72,7 +72,7 @@ var scrape_action = function() {
 
 // Clear data and start again
 var clear_action = function() {
-    $(this).addClass('disabled').html('Clearing&hellip;').attr('disabled', true)
+    $(this).addClass('loading').html('Clearing&hellip;').attr('disabled', true)
     $('pre,.alert,.help-inline').remove()
 
     scraperwiki.tool.rename("Get Twitter followers")
@@ -86,10 +86,10 @@ var clear_action = function() {
 
 // Buttons show "Loading..." and so on while working. This puts all their text back after.
 var fix_button_texts = function() {
-    $('#reauthenticate').removeClass('disabled').html('Reauthenticate').attr('disabled', false)
-    $('#refresh').removeClass('disabled').html('Refresh!').attr('disabled', false)
-    $('#submit').removeClass('disabled').html('Go!').attr('disabled', false)
-    $('#clear-data').removeClass('disabled').html('Clear data').attr('disabled', false)
+    $('#reauthenticate').removeClass('loading').html('Reauthenticate').attr('disabled', false)
+    $('#refresh').removeClass('loading').html('Refresh!').attr('disabled', false)
+    $('#submit').removeClass('loading').html('Go!').attr('disabled', false)
+    $('#clear-data').removeClass('loading').html('Clear data').attr('disabled', false)
 }
  
 // Show the right form (get settings, or the refresh data one)
