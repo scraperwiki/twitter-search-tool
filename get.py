@@ -82,7 +82,8 @@ def save_user(batch, user, table_name):
     data['id'] = user['id']
     data['name'] = user['name']
     data['screen_name'] = user['screen_name']
-    data['profile_image'] = user['profile_image_url_https'] # shorten to avoid wasting horizontal space
+    data['profile_url'] = "https://twitter.com/" + user['screen_name']
+    data['profile_image'] = user['profile_image_url_https'] # shorten name to avoid wasting horizontal space
 
     data['description'] = user['description']
     data['location'] = user['location']
@@ -94,7 +95,7 @@ def save_user(batch, user, table_name):
 
     data['created_at'] = dateutil.parser.parse(user['created_at'])
 
-    data['batch'] = batch
+    data['batch'] = batch # this is needed internally to track progress of getting all the followers
     
     scraperwiki.sqlite.save(['id'], data, table_name=table_name)
 
