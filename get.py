@@ -10,6 +10,7 @@ import requests
 import subprocess
 import httplib
 import sqlite3
+import scraperwiki
 
 from secrets import *
 
@@ -183,7 +184,9 @@ try:
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
     #   c. "clean-slate": wipe database and start again
     if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
-        os.system("rm -fr scraperwiki.sqlite; crontab -r >/dev/null 2>&1")
+	scraperwiki.sqlite.execute("drop table if exists twitter_followers")
+	scraperwiki.sqlite.execute("drop table if exists status")
+        os.system("crontab -r >/dev/null 2>&1")
         import scraperwiki
         set_status_and_exit('clean-slate', 'error', 'No user set')
         sys.exit()
