@@ -1,0 +1,21 @@
+body {
+  padding: 20px;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+.muted {
+  margin-right: 10px;
+}
+
+p.loading {
+  display: none;
+  margin-top: 100px;
+  padding-top: 50px;
+  text-align: center;
+  background: transparent url('tool-loader.gif') center top no-repeat;
+  color: #666;
+  font-size: 20px;
+}
