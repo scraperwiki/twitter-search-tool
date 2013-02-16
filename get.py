@@ -220,6 +220,7 @@ try:
     while True:
         #raise httplib.IncompleteRead('hi') # for testing
 
+        #print "getting", next_cursor
         if next_cursor == -1:
             result = tw.followers.list(screen_name=screen_name)
         else:
@@ -232,6 +233,13 @@ try:
 
         # While debugging, only do one page to avoid rate limits by uncommenting this:
         # break
+
+        # If we have exactly the number of followers claimed, then only do one
+        # API call each time to save on rate limiting. This will gradually
+        # refresh everything anyway...  And realistically, if someone has
+        # churning followers, we'll get badly out of count soon enough.
+        if batch_got == batch_expected:
+            break
 
         if next_cursor == 0:
             # We've finished a batch
