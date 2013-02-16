@@ -10,8 +10,8 @@ import requests
 import subprocess
 import httplib
 import sqlite3
-import scraperwiki
 import datetime
+import scraperwiki
 
 from secrets import *
 
@@ -187,14 +187,15 @@ try:
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
     #   c. "clean-slate": wipe database and start again
     if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
-	scraperwiki.sqlite.execute("drop table if exists twitter_followers")
-	scraperwiki.sqlite.execute("drop table if exists status")
+        scraperwiki.sqlite.execute("drop table if exists twitter_followers")
+        scraperwiki.sqlite.execute("drop table if exists status")
         os.system("crontab -r >/dev/null 2>&1")
-        import scraperwiki
         set_status_and_exit('clean-slate', 'error', 'No user set')
         sys.exit()
 
-    import scraperwiki
+    # Make the followers table *first* with dumb data, calling DumpTruck directly,
+    # so it appears before the status one in the list
+    scraperwiki.sqlite.dt.create_table({'id': 1}, 'twitter_followers')
 
     # Get user we're working on from file we store it in
     screen_name = open("user.txt").read().strip()
