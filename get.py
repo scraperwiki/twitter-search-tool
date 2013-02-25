@@ -278,7 +278,7 @@ except httplib.IncompleteRead, e:
 if batch_got == batch_expected:
     set_status_and_exit("ok-updating", 'ok', "Fully up to date")
 else:
-    set_status_and_exit("ok-updating", 'error', "Running... %d/%d" % (batch_got, batch_expected))
+    set_status_and_exit("ok-updating", 'ok', "Running... %d/%d" % (batch_got, batch_expected))
 
 
 
