@@ -44,7 +44,7 @@ def oauth_url_dance(consumer_key, consumer_secret, callback_url, oauth_verifier,
         return oauth_url
 
     # 2) We've done pre-verification, hopefully the user has authed us in Twitter
-    # and we've been redirected to. Check we are and ask for the permenanet tokens.
+    # and we've been redirected to. Check we are and ask for the permanent tokens.
     oauth_token, oauth_token_secret = read_token_file(CREDS_PRE_VERIFIY)
     twitter = Twitter(auth=OAuth( oauth_token, oauth_token_secret, consumer_key, consumer_secret), format='', api_version=None)
     oauth_token, oauth_token_secret = parse_oauth_tokens(twitter.oauth.access_token(oauth_verifier=oauth_verifier))
