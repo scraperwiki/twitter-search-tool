@@ -97,22 +97,6 @@ def save_tweet(tweet, table_name):
     data['profile_image'] = tweet['user']['profile_image_url_https']
     data['profile_url'] = "https://twitter.com/" + tweet['user']['screen_name']
 
-    # other people fields we could put in, kinda reluctant, confusing/bloaty.
-    # maybe have separate scraper of "people who said this kind of thing"?
-    #data['name'] = user['name']
-    #data['screen_name'] = user['screen_name']
-    #data['profile_url'] = "https://twitter.com/" + user['screen_name']
-    #data['profile_image'] = user['profile_image_url_https'] # shorten name to avoid wasting horizontal space
-
-    #data['description'] = user['description']
-    #data['location'] = user['location']
-    #data['url'] = user['url']
-
-    #data['followers_count'] = user['followers_count']
-    #data['following_count'] = user['friends_count'] # rename as "friends" is confusing to end users
-    #data['statuses_count'] = user['statuses_count']
-
-    #print data
     scraperwiki.sqlite.save(['id'], data, table_name=table_name)
 
 # Afer detecting an auth failed error mid work, call this
@@ -156,11 +140,11 @@ try:
         set_status_and_exit('clean-slate', 'error', 'No query set')
         sys.exit()
 
-    # Make the followers table *first* with dumb data, calling DumpTruck directly,
+    # Make the tweets table *first* with dumb data, calling DumpTruck directly,
     # so it appears before the status one in the list
     scraperwiki.sqlite.dt.create_table({'id': 1}, 'tweets')
 
-    # Get user we're working on from file we store it in
+    # Get query we're working on from file we store it in
     query_terms = open("query.txt").read().strip()
 
     # Connect to Twitter
@@ -204,6 +188,7 @@ except httplib.IncompleteRead, e:
 
 # Save progress message
 set_status_and_exit("ok-updating", 'ok', '')
+
 
 
 
