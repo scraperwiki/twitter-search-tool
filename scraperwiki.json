@@ -1,5 +1,5 @@
 {
-  "displayName": "Search the Twitter firehose",
-  "gitUrl": "git@github.com:scraperwiki/twitter-XXXXX.git",
-  "description": "Choose your own keyword. Only a sample of new Tweets."
+  "displayName": "Search for Tweets",
+  "gitUrl": "git@github.com:scraperwiki/twitter-search-tool.git",
+  "description": "Choose your own keyword. Updates as new Tweets arrive."
 }

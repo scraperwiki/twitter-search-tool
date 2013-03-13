@@ -113,15 +113,13 @@ def clear_auth_and_restart():
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
-    global current_status
-
     extra['status'] = status
     print json.dumps(extra)
 
     requests.post("https://x.scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
-    current_status = status
-    # save_status()
+    data = { 'id': 'tweets', 'current_status': status }
+    scraperwiki.sqlite.save(['id'], data, table_name='status')
 
     sys.exit()
 
@@ -136,6 +134,7 @@ try:
     #   c. "clean-slate": wipe database and start again
     if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
         scraperwiki.sqlite.execute("drop table if exists tweets")
+        scraperwiki.sqlite.execute("drop table if exists status")
         os.system("crontab -r >/dev/null 2>&1")
         set_status_and_exit('clean-slate', 'error', 'No query set')
         sys.exit()

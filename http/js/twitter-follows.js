@@ -95,7 +95,7 @@ var show_hide_stuff = function(done) {
         $('.who').text(data)
 
         // Show right form
-        scraperwiki.sql('select * from status where id = "followers"', function(results){
+        scraperwiki.sql('select * from status where id = "tweets"', function(results){
             results = results[0]
             console.log(results)
 
@@ -116,6 +116,9 @@ var show_hide_stuff = function(done) {
                 $('#settings-clear').show()
             } else if (results['current_status'] == 'clean-slate') {
                 $('#settings-get').show()
+            } else if (results['current_status'] == 'ok-updating') {
+                $('#settings-working').show()
+                $('#settings-clear').show()
             } else {
                 alert("Unknown internal state: " + results['current_status'])
             }
