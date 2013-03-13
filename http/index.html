@@ -21,23 +21,19 @@
     </div>
 
     <div class="settings" id="settings-get" style="display:none">
-        <h2>Get new Tweets containing a word<h2>
+          <form class="form-search">
+            <input type="text" name="q" id="q" class="input-medium search-query">
+            <button type="button" class="btn" id="submit" disabled="disabled">Search</button>
+          </form>
 
-        <div class="form-horizontal">
-            <div class="control-group">
-                <label class="control-label" for="q">Keyword</label>
-                <div class="controls">
-                    <input type="text" name="q" size="80" id="q" placeholder="">
-                    <button class="btn btn-primary" type="button" id="submit" disabled="disabled">Go!</button>
-                </div>
-            </div>
-        </div>
+          <p class="well well-small"><span class="label label-info">Tip</span> You can use Twitter's advanced
+           <a href="https://support.twitter.com/articles/71577-how-to-use-advanced-twitter-search">search operators</a>
+           in your query. e.g. <code>data OR journalism</code>, <code>#strataconf</code>, <code>to:bengoldacre</code>
+          </p>
     </div>
 
     <div class="settings" id="settings-clear" style="display:none">
-         <h2>Change settings</h2>
          <button class="btn btn-danger" type="button" id="clear-data" disabled="disabled">Clear data</button>
-         to start over. Alternatively, create a new dataset.</p>
     </div>
 
   </body>

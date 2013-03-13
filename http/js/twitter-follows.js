@@ -69,7 +69,7 @@ var clear_action = function() {
     $(this).addClass('loading').html('Clearing&hellip;').attr('disabled', true)
     $('pre,.alert,.help-inline').remove()
 
-    scraperwiki.tool.rename("Tweets matching a word")
+    scraperwiki.tool.rename("Search for Tweets")
     scraperwiki.exec("tool/get.py clean-slate",
         done_exec_main,
         function(obj, err, exception) {
@@ -81,8 +81,7 @@ var clear_action = function() {
  // Buttons show "Loading..." and so on while working. This puts all their text back after.
 var fix_button_texts = function() {
     $('#reauthenticate').removeClass('loading').html('Reauthenticate').attr('disabled', false)
-    $('#refresh').removeClass('loading').html('Refresh!').attr('disabled', false)
-    $('#submit').removeClass('loading').html('Go!').attr('disabled', false)
+    $('#submit').removeClass('loading').html('Search').attr('disabled', false)
     $('#clear-data').removeClass('loading').html('Clear data').attr('disabled', false)
 }
  
