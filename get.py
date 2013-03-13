@@ -67,42 +67,6 @@ def do_tool_oauth():
     tw = twitter.Twitter(auth=twitter.OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET))
     return tw
 
-#########################################################################
-# Helper functions
-
-# Stores one Twitter user in the ScraperWiki database
-def save_tweet(tweet, table_name):
-    data = collections.OrderedDict()
-
-    data['id'] = tweet['id']
-    data['tweet_url'] = "https://twitter.com/" + tweet['user']['screen_name'] + "/status/" + str(tweet['id'])
-    data['created_at'] = dateutil.parser.parse(tweet['created_at'])
-
-    data['text'] = tweet['text']
-    data['lang'] = tweet['lang']
-
-    data['retweet_count'] = tweet['retweet_count']
-    # favorites count?
-    # conversation thread length?
-
-    data['screen_name'] = tweet['user']['screen_name']
-    data['in_reply_to_screen_name'] = tweet['in_reply_to_screen_name']
-    data['in_reply_to_status_id'] = tweet['in_reply_to_status_id']
-
-    try:
-        data['lat'] = tweet['geo']['coordinates'][0]
-        data['lng'] = tweet['geo']['coordinates'][1]
-    except:
-        pass
-
-    # Other ideas:
-    # first URL from entities
-    # first user mention from entities
-    # first hash tag from entities
-    # first media (twitpic) url from entities (media_url_https)
-
-    scraperwiki.sqlite.save(['id'], data, table_name=table_name)
-
 # Afer detecting an auth failed error mid work, call this
 def clear_auth_and_restart():
     # remove auth files and respawn
@@ -114,6 +78,9 @@ def clear_auth_and_restart():
         pass
     subprocess.call(sys.argv)
     sys.exit()
+
+#########################################################################
+# Helper functions
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
@@ -140,6 +107,7 @@ try:
         scraperwiki.sqlite.execute("drop table if exists tweets")
         scraperwiki.sqlite.execute("drop table if exists status")
         os.system("crontab -r >/dev/null 2>&1")
+        scraperwiki.sqlite.dt.create_table({'id': 1}, 'tweets')
         set_status_and_exit('clean-slate', 'error', 'No query set')
         sys.exit()
 
@@ -159,12 +127,41 @@ try:
     # Get Tweets
     results = tw.search.tweets(q=query_terms)
     for tweet in results['statuses']:
-        #print tweet
-        save_tweet(tweet, 'tweets')
-    #print tw.application.rate_limit_status()
+        data = collections.OrderedDict()
+
+        data['id'] = tweet['id']
+        data['tweet_url'] = "https://twitter.com/" + tweet['user']['screen_name'] + "/status/" + str(tweet['id'])
+        data['created_at'] = dateutil.parser.parse(tweet['created_at'])
+
+        data['text'] = tweet['text']
+        data['lang'] = tweet['lang']
+
+        data['retweet_count'] = tweet['retweet_count']
+        # favorites count?
+        # conversation thread length?
+
+        data['screen_name'] = tweet['user']['screen_name']
+        data['in_reply_to_screen_name'] = tweet['in_reply_to_screen_name']
+        data['in_reply_to_status_id'] = tweet['in_reply_to_status_id']
+
+        try:
+            data['lat'] = tweet['geo']['coordinates'][0]
+            data['lng'] = tweet['geo']['coordinates'][1]
+        except:
+            pass
+
+        # Other ideas:
+        # first URL from entities
+        # first user mention from entities
+        # first hash tag from entities
+        # first media (twitpic) url from entities (media_url_https)
+
+        data['query'] = query_terms
+
+        scraperwiki.sqlite.save(['id'], data, table_name="tweets")
+        #print tw.application.rate_limit_status()
 
 except twitter.api.TwitterHTTPError, e:
-    print e
     if "Twitter sent status 401 for URL" in str(e):
         clear_auth_and_restart()
 
