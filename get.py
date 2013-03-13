@@ -67,39 +67,55 @@ def do_tool_oauth():
     tw = twitter.Twitter(auth=twitter.OAuth( oauth_token, oauth_token_secret, CONSUMER_KEY, CONSUMER_SECRET))
     return tw
 
-# XXX We're going to need to check for exceptions like this and delete the auth files and reauth
-# You can get these exceptions either just above, or in the dance too - basically in the whole file...
-#twitter.api.TwitterHTTPError: Twitter sent status 401 for URL: 1.1/followers/list.json using parameters: (oauth_consumer_key=3CejKAAW7OGqni9lxuU09g&oauth_nonce=14791547903118891158&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1360055733&oauth_token=PFcsB0z7nf7kNDVq030T6VZSK1PwTMLjuLxLi6U7PU&oauth_version=1.0&screen_name=spikingneural&oauth_signature=szYU8AYsfSp3m5Kzo%2FYGnKHZyP8%3D)
-#details: {"errors":[{"message":"Invalid or expired token","code":89}]}
-
 #########################################################################
 # Helper functions
 
 # Stores one Twitter user in the ScraperWiki database
-def save_user(batch, user, table_name):
+def save_tweet(tweet, table_name):
     data = collections.OrderedDict()
 
-    data['id'] = user['id']
-    data['name'] = user['name']
-    data['screen_name'] = user['screen_name']
-    data['profile_url'] = "https://twitter.com/" + user['screen_name']
-    data['profile_image'] = user['profile_image_url_https'] # shorten name to avoid wasting horizontal space
+    data['id'] = tweet['id']
+    data['tweet_url'] = "https://twitter.com/" + tweet['user']['screen_name'] + "/status/" + str(tweet['id'])
+    data['created_at'] = dateutil.parser.parse(tweet['created_at'])
 
-    data['description'] = user['description']
-    data['location'] = user['location']
-    data['url'] = user['url']
+    data['text'] = tweet['text']
+    data['lang'] = tweet['lang']
 
-    data['followers_count'] = user['followers_count']
-    data['following_count'] = user['friends_count'] # rename as "friends" is confusing to end users
-    data['statuses_count'] = user['statuses_count']
+    data['retweet_count'] = tweet['retweet_count']
+    # favorites count?
+    # conversation thread length?
 
-    data['created_at'] = dateutil.parser.parse(user['created_at'])
+    # Other ideas:
+    # first URL from entities
+    # first user mention from entities
+    # first hash tag from entities
+    # first media (twitpic) url from entities (media_url_https)
 
-    data['batch'] = batch # this is needed internally to track progress of getting all the followers
-    
+    # about the person
+    data['name'] = tweet['user']['name']
+    data['screen_name'] = tweet['user']['screen_name']
+    data['profile_image'] = tweet['user']['profile_image_url_https']
+    data['profile_url'] = "https://twitter.com/" + tweet['user']['screen_name']
+
+    # other people fields we could put in, kinda reluctant, confusing/bloaty.
+    # maybe have separate scraper of "people who said this kind of thing"?
+    #data['name'] = user['name']
+    #data['screen_name'] = user['screen_name']
+    #data['profile_url'] = "https://twitter.com/" + user['screen_name']
+    #data['profile_image'] = user['profile_image_url_https'] # shorten name to avoid wasting horizontal space
+
+    #data['description'] = user['description']
+    #data['location'] = user['location']
+    #data['url'] = user['url']
+
+    #data['followers_count'] = user['followers_count']
+    #data['following_count'] = user['friends_count'] # rename as "friends" is confusing to end users
+    #data['statuses_count'] = user['statuses_count']
+
+    #print data
     scraperwiki.sqlite.save(['id'], data, table_name=table_name)
 
-# After detecting an auth failed error mid work, call this
+# Afer detecting an auth failed error mid work, call this
 def clear_auth_and_restart():
     # remove auth files and respawn
     try:
@@ -121,61 +137,9 @@ def set_status_and_exit(status, typ, message, extra = {}):
     requests.post("https://x.scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
     current_status = status
-    save_status()
+    # save_status()
 
     sys.exit()
-
-
-# Store all our progress variables
-def save_status():
-    global current_batch, next_cursor, batch_got, batch_expected, current_status
-
-    # Update progress indicators...
-
-    # For number of users got, we count the total of:
-    # 1) all followers in the last full batch
-    # 2) all followers transferred into the new batch so far
-    # i.e. all those for whom batch >= (current_batch - 1)
-    try:
-        batch_got = scraperwiki.sqlite.select("count(*) as c from twitter_followers where batch >= %d" % (current_batch - 1))[0]['c']
-    except:
-        batch_got = 0
-
-    data = { 
-        'id': 'followers',
-        'current_batch': current_batch,
-        'next_cursor': next_cursor,
-        'batch_got': batch_got,
-        'batch_expected': batch_expected,
-        'current_status': current_status
-    }
-    scraperwiki.sqlite.save(['id'], data, table_name='status')
-
-# Load in all our progress variables
-current_batch = 1
-next_cursor = -1
-batch_got = 0
-batch_expected = 0
-current_status = 'clean-slate'
-def get_status():
-    global current_batch, next_cursor, batch_got, batch_expected, current_status
-
-    try:
-        data = scraperwiki.sqlite.select("* from status where id='followers'")
-    except sqlite3.OperationalError, e:
-        if str(e) == "no such table: status":
-            return
-        raise
-    if len(data) == 0:
-        return
-    assert(len(data) == 1)
-    data = data[0]
-
-    current_batch = data['current_batch']
-    next_cursor = data['next_cursor']
-    batch_got = data['batch_got']
-    batch_expected = data['batch_expected']
-    current_status = data['current_status']
 
 #########################################################################
 # Main code
@@ -187,69 +151,33 @@ try:
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
     #   c. "clean-slate": wipe database and start again
     if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
-        scraperwiki.sqlite.execute("drop table if exists twitter_followers")
-        scraperwiki.sqlite.execute("drop table if exists status")
+        scraperwiki.sqlite.execute("drop table if exists tweets")
         os.system("crontab -r >/dev/null 2>&1")
-        set_status_and_exit('clean-slate', 'error', 'No user set')
+        set_status_and_exit('clean-slate', 'error', 'No query set')
         sys.exit()
 
     # Make the followers table *first* with dumb data, calling DumpTruck directly,
     # so it appears before the status one in the list
-    scraperwiki.sqlite.dt.create_table({'id': 1}, 'twitter_followers')
+    scraperwiki.sqlite.dt.create_table({'id': 1}, 'tweets')
 
     # Get user we're working on from file we store it in
-    screen_name = open("user.txt").read().strip()
+    query_terms = open("query.txt").read().strip()
 
     # Connect to Twitter
     tw = do_tool_oauth()
 
-    # A batch is one scan through the list of followers - we have to scan as we only
-    # get 20 per API call, and have 15 API calls / 15 minutes (as of Feb 2013).
-    # The cursor is Twitter's identifier of where in the current batch we are.
-    get_status()
-    # Note that each user is only in the most recent batch they've been found in
-    # (we don't keep all the history)
-
-    # Look up latest followers count
-    profile = tw.users.lookup(screen_name=screen_name)
-    batch_expected = profile[0]['followers_count']
-
     # Things basically working, so make sure we run again
-    os.system("crontab tool/crontab")
+    # os.system("crontab tool/crontab")
 
-    # Get as many pages in the batch as we can (most likely 15!)
-    while True:
-        #raise httplib.IncompleteRead('hi') # for testing
-
-        #print "getting", next_cursor
-        if next_cursor == -1:
-            result = tw.followers.list(screen_name=screen_name)
-        else:
-            result = tw.followers.list(screen_name=screen_name, cursor=next_cursor)
-        pages_got += 1
-        for user in result['users']:
-            save_user(current_batch, user, "twitter_followers")
-        next_cursor = result['next_cursor']
-        save_status()
-
-        # While debugging, only do one page to avoid rate limits by uncommenting this:
-        # break
-
-        # If we have exactly the number of followers claimed, then only do one
-        # API call each time to save on rate limiting. This will gradually
-        # refresh everything anyway...  And realistically, if someone has
-        # churning followers, we'll get badly out of count soon enough.
-        if batch_got == batch_expected:
-            break
-
-        if next_cursor == 0:
-            # We've finished a batch
-            next_cursor = -1
-            current_batch += 1
-            save_status()
-            break
+    # Get Tweets
+    results = tw.search.tweets(q=query_terms)
+    for tweet in results['statuses']:
+        #print tweet
+        save_tweet(tweet, 'tweets')
+    #print tw.application.rate_limit_status()
 
 except twitter.api.TwitterHTTPError, e:
+    print e
     if "Twitter sent status 401 for URL" in str(e):
         clear_auth_and_restart()
 
@@ -275,10 +203,7 @@ except httplib.IncompleteRead, e:
         set_status_and_exit('rate-limit', 'error', 'Twitter broke the conncetion')
 
 # Save progress message
-if batch_got == batch_expected:
-    set_status_and_exit("ok-updating", 'ok', "Fully up to date")
-else:
-    set_status_and_exit("ok-updating", 'ok', "Running... %d/%d" % (batch_got, batch_expected))
+set_status_and_exit("ok-updating", 'ok', '')
 
 
 

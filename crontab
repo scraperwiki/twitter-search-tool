@@ -1,8 +1,6 @@
 SHELL=/bin/bash
 
 # Sleep to spread the cron jobs out across the hour randomly.
-# We only pick 40 minutes, so there is always at least a 15 minute
-# gap for Twitter to clear its API calls.
 @hourly sleep $((RANDOM\%40))m; ./tool/get.py
 
 

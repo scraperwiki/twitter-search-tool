@@ -46,23 +46,17 @@ var scrape_action = function() {
     $('.control-group').removeClass('error')
 
     var q = $('#q').val()
-    q = q.replace(/^@/,'')
-    if (q.match(/[^a-zA-Z0-9_]/)) {
-        $(".control-group").addClass('error')
-        $(".controls").append('<span class="help-inline">Twitter user names only use the alphabet, numbers and _</span>')
-        return
-    }
 
     $(this).addClass('loading').html('Loading&hellip;').attr('disabled', true)
 
     // Rename the dataset in the user interface
     // (only when they press the main submit button - not for refreshes)
     if ($(this).attr('id') == 'submit') {
-        scraperwiki.tool.rename("@" + q + "'s Twitter followers")
+        scraperwiki.tool.rename("Tweets matching '" + q + "'")
     }
 
     // Pass various OAuth bits of data to the Python script that is going to do the work
-    scraperwiki.exec('echo ' + escapeshell(q) + '>user.txt; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"', 
+    scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"', 
         done_exec_main, 
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
@@ -75,7 +69,7 @@ var clear_action = function() {
     $(this).addClass('loading').html('Clearing&hellip;').attr('disabled', true)
     $('pre,.alert,.help-inline').remove()
 
-    scraperwiki.tool.rename("Get Twitter followers")
+    scraperwiki.tool.rename("Tweets matching a word")
     scraperwiki.exec("tool/get.py clean-slate",
         done_exec_main,
         function(obj, err, exception) {
@@ -84,7 +78,7 @@ var clear_action = function() {
     )
 }
 
-// Buttons show "Loading..." and so on while working. This puts all their text back after.
+ // Buttons show "Loading..." and so on while working. This puts all their text back after.
 var fix_button_texts = function() {
     $('#reauthenticate').removeClass('loading').html('Reauthenticate').attr('disabled', false)
     $('#refresh').removeClass('loading').html('Refresh!').attr('disabled', false)
@@ -95,7 +89,7 @@ var fix_button_texts = function() {
 // Show the right form (get settings, or the refresh data one)
 var show_hide_stuff = function(done) {
     // Find out what user it is
-    scraperwiki.exec('touch user.txt; cat user.txt', function(data) {
+    scraperwiki.exec('touch query.txt; cat query.txt', function(data) {
         data = $.trim(data)
         $('#q').val(data)
         $('.who').text(data)
@@ -108,34 +102,6 @@ var show_hide_stuff = function(done) {
             $('.settings').hide()
             fix_button_texts()
        
-            $('.batch_got').text(results['batch_got'])
-            $('.batch_expected').text(results['batch_expected'])
-            var tweets_per_request = 20
-            var request_per_hour = 15 // we run @hourly in cron, and grab 15 each time until Twitter stops us
-            var hours_left = Math.round((results['batch_expected'] - results['batch_got']) / request_per_hour / tweets_per_request)
-            var days_left = Math.round(hours_left / 24)
-            if (hours_left <= 1) {
-                eta = "1 hour"
-            } else if (hours_left < 13) {
-                eta = hours_left + " hours"
-            } else if (days_left < 2) {
-                eta = "1 day"
-            } else {
-                eta = days_left + " days"
-            }
-            $('#eta').text(eta)
-
-            $('#got-some').hide()
-            $('#got-all').hide()
-            if (results['batch_got'] == results['batch_expected']) {
-                $('#got-all').show()
-            } else {
-                $('#got-some').show()
-            }
-
-            $('pre,.alert,.help-inline').remove()
-            $('.control-group').removeClass('error')
-
             if (results['current_status'] == 'auth-redirect') {
                 $('#settings-auth').show()
                 $('#settings-clear').show()
@@ -143,17 +109,10 @@ var show_hide_stuff = function(done) {
                 if (oauth_verifier) {
                     $("#reauthenticate").trigger("click")
                 }
-            } else if (results['current_status'] == 'not-there') {
-                $('#settings-get').show()
-                var p = $('<p>').addClass('alert alert-error').html("<b>User not found on Twitter!</b> Check the spelling and that they have an account and try again.")
-                $('body').prepend(p)
             } else if (results['current_status'] == 'rate-limit') {
                 $('#settings-working').show()
                 var p = $('<p>').addClass('alert alert-warning').html('<b>Twitter is rate limiting you!</b> Things to try: <ul> <li>Reduce the number of Twitter tools you have</li> <li>Check for <a href="https://twitter.com/settings/applications">other Twitter applications</a> and revoke access</li> </ul>')
                 $('body').prepend(p)
-                $('#settings-clear').show()
-            } else if (results['current_status'] == 'ok-updating') {
-                $('#settings-working').show()
                 $('#settings-clear').show()
             } else if (results['current_status'] == 'clean-slate') {
                 $('#settings-get').show()
@@ -175,10 +134,6 @@ var show_hide_stuff = function(done) {
        something_went_wrong(err + "! " + exception)
     })
 }
-
-var escapeshell = function(cmd) {
-    return "'"+cmd.replace(/'/g,"'\\''")+"'";
-};
 
 // Get OAuth parameters that we need from the URL
 var settings = scraperwiki.readSettings()
