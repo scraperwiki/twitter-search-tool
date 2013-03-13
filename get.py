@@ -85,17 +85,21 @@ def save_tweet(tweet, table_name):
     # favorites count?
     # conversation thread length?
 
+    data['screen_name'] = tweet['user']['screen_name']
+    data['in_reply_to_screen_name'] = tweet['in_reply_to_screen_name']
+    data['in_reply_to_status_id'] = tweet['in_reply_to_status_id']
+
+    try:
+        data['lat'] = tweet['geo']['coordinates'][0]
+        data['lng'] = tweet['geo']['coordinates'][1]
+    except:
+        pass
+
     # Other ideas:
     # first URL from entities
     # first user mention from entities
     # first hash tag from entities
     # first media (twitpic) url from entities (media_url_https)
-
-    # about the person
-    data['name'] = tweet['user']['name']
-    data['screen_name'] = tweet['user']['screen_name']
-    data['profile_image'] = tweet['user']['profile_image_url_https']
-    data['profile_url'] = "https://twitter.com/" + tweet['user']['screen_name']
 
     scraperwiki.sqlite.save(['id'], data, table_name=table_name)
 
