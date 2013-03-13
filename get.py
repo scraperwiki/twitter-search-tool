@@ -122,7 +122,7 @@ try:
     tw = do_tool_oauth()
 
     # Things basically working, so make sure we run again
-    # os.system("crontab tool/crontab")
+    os.system("crontab tool/crontab")
 
     # Get Tweets
     results = tw.search.tweets(q=query_terms)
