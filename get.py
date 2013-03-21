@@ -12,8 +12,21 @@ import httplib
 import sqlite3
 import datetime
 import scraperwiki
+import httplib
 
 from secrets import *
+
+# Horrendous hack to work around some Twitter / Python incompatibility
+# http://bobrochel.blogspot.co.nz/2010/11/bad-servers-chunked-encoding-and.html
+def patch_http_response_read(func):
+    def inner(*args):
+        try:
+            return func(*args)
+        except httplib.IncompleteRead, e:
+            return e.partial
+
+    return inner
+httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
 
 # Make sure you install this version of "twitter":
 # http://pypi.python.org/pypi/twitter
@@ -94,38 +107,7 @@ def set_status_and_exit(status, typ, message, extra = {}):
 
     sys.exit()
 
-#########################################################################
-# Main code
-
-pages_got = 0
-try:
-    # Parameters to this command vary:
-    #   a. None: try and scrape Twitter followers
-    #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
-    #   c. "clean-slate": wipe database and start again
-    if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
-        scraperwiki.sqlite.execute("drop table if exists tweets")
-        scraperwiki.sqlite.execute("drop table if exists status")
-        os.system("crontab -r >/dev/null 2>&1")
-        scraperwiki.sqlite.dt.create_table({'id': 1}, 'tweets')
-        set_status_and_exit('clean-slate', 'error', 'No query set')
-        sys.exit()
-
-    # Make the tweets table *first* with dumb data, calling DumpTruck directly,
-    # so it appears before the status one in the list
-    scraperwiki.sqlite.dt.create_table({'id': 1}, 'tweets')
-
-    # Get query we're working on from file we store it in
-    query_terms = open("query.txt").read().strip()
-
-    # Connect to Twitter
-    tw = do_tool_oauth()
-
-    # Things basically working, so make sure we run again
-    os.system("crontab tool/crontab")
-
-    # Get Tweets
-    results = tw.search.tweets(q=query_terms)
+def process_results(results, query_terms):
     for tweet in results['statuses']:
         data = collections.OrderedDict()
 
@@ -157,9 +139,48 @@ try:
         # first media (twitpic) url from entities (media_url_https)
 
         data['query'] = query_terms
-
         scraperwiki.sqlite.save(['id'], data, table_name="tweets")
-        #print tw.application.rate_limit_status()
+
+
+#########################################################################
+# Main code
+
+try:
+    # Parameters to this command vary:
+    #   a. None: try and scrape Twitter followers
+    #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
+    #   c. "clean-slate": wipe database and start again
+    if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
+        scraperwiki.sqlite.execute("drop table if exists tweets")
+        scraperwiki.sqlite.execute("drop table if exists status")
+        os.system("crontab -r >/dev/null 2>&1")
+        scraperwiki.sqlite.dt.create_table({'id': 1}, 'tweets')
+        set_status_and_exit('clean-slate', 'error', 'No query set')
+        sys.exit()
+
+    # Make the tweets table *first* with dumb data, calling DumpTruck directly,
+    # so it appears before the status one in the list
+    scraperwiki.sqlite.dt.create_table({'id': 1}, 'tweets')
+
+    # Get query we're working on from file we store it in
+    query_terms = open("query.txt").read().strip()
+
+    # Connect to Twitter
+    tw = do_tool_oauth()
+
+    # Things basically working, so make sure we run again
+    os.system("crontab tool/crontab")
+    # print (tw.application.rate_limit_status())['resources']['search']['/search/tweets']
+
+    # Get recent Tweets, one more page worth
+    max_id = scraperwiki.sqlite.select("max(id) from tweets")[0]["max(id)"]
+    results = tw.search.tweets(q=query_terms, since_id = max_id)
+    process_results(results, query_terms)
+
+    # Get older tweets, one more page worth
+    min_id = scraperwiki.sqlite.select("min(id) from tweets")[0]["min(id)"]
+    results = tw.search.tweets(q=query_terms, max_id = min_id)
+    process_results(results, query_terms)
 
 except twitter.api.TwitterHTTPError, e:
     if "Twitter sent status 401 for URL" in str(e):
@@ -176,15 +197,13 @@ except twitter.api.TwitterHTTPError, e:
         set_status_and_exit('not-there', 'error', 'User not on Twitter')
     if code == 88:
         # provided we got at least one page, rate limit isn't an error but expected
-        if pages_got == 0:
-            set_status_and_exit('rate-limit', 'error', 'Twitter is rate limiting you')
+	set_status_and_exit('rate-limit', 'error', 'Twitter is rate limiting you')
     else:
         # anything else is an unexpected error - if ones occur a lot, add the above instead
         raise
 except httplib.IncompleteRead, e:
     # I think this is effectively a rate limit error - so only count if it was first error
-    if pages_got == 0:
-        set_status_and_exit('rate-limit', 'error', 'Twitter broke the conncetion')
+    set_status_and_exit('rate-limit', 'error', 'Twitter broke the connection')
 
 # Save progress message
 set_status_and_exit("ok-updating", 'ok', '')
