@@ -1,5 +1,6 @@
 // Show very general purpose error
 var something_went_wrong = function(content) {
+    console.log("something_went_wrong", content)
     fix_button_texts()
     $('pre,.alert,.help-inline').remove()
     var p = $('<p>').addClass('alert alert-error').html('<b>Something went wrong!</b> Click here to show technical details.').on('click', function() {
