@@ -175,7 +175,9 @@ try:
     os.system("crontab tool/crontab")
     # remaining = (tw.application.rate_limit_status())['resources']['search']['/search/tweets']['remaining']
 
-    # Get recent Tweets, one more page worth
+
+    onetime = 'ONETIME' in os.environ
+    # Get recent Tweets
     got = 2
     while got > 1:
 	max_id = scraperwiki.sqlite.select("max(id_str) from tweets")[0]["max(id_str)"]
@@ -183,8 +185,10 @@ try:
 	got = process_results(results, query_terms)
         #print "max", max_id, "got", got
 	pages_got += 1
+	if onetime:
+	    break
 
-    # Get older tweets, one more page worth
+    # Get older tweets
     got = 2
     while got > 1:
 	min_id = scraperwiki.sqlite.select("min(id_str) from tweets")[0]["min(id_str)"]
@@ -192,6 +196,8 @@ try:
 	got = process_results(results, query_terms)
         #print "min", min_id, "got", got
 	pages_got += 1
+	if onetime:
+	    break
 
 except twitter.api.TwitterHTTPError, e:
     if "Twitter sent status 401 for URL" in str(e):

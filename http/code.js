@@ -23,8 +23,16 @@ var done_exec_main = function(content) {
         }
 
         if (response['status'] == 'ok-updating') {
-            var datasetUrl = "/dataset/" + scraperwiki.box
-            scraperwiki.tool.redirect(datasetUrl)
+            // set another (full) run going in the background to start getting older tweets
+            scraperwiki.exec('tool/get.py >/dev/null 2>&1 &', 
+              function() {
+                var datasetUrl = "/dataset/" + scraperwiki.box
+                scraperwiki.tool.redirect(datasetUrl)
+              },
+              function(obj, err, exception) {
+                  something_went_wrong(err + "! " + exception)
+              }
+            )
             return
         }
 
@@ -56,7 +64,7 @@ var scrape_action = function() {
     }
 
     // Pass various OAuth bits of data to the Python script that is going to do the work
-    scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; tool/get.py "' + callback_url + '" "' + oauth_verifier + '"', 
+    scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; ONETIME=1 tool/get.py "' + callback_url + '" "' + oauth_verifier + '"', 
         done_exec_main, 
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
