@@ -1,5 +1,6 @@
 body {
   padding: 20px;
+  text-align: center;
 }
 
 h2 {
@@ -10,12 +11,7 @@ h2 {
   margin-right: 10px;
 }
 
-p.loading {
-  display: none;
-  margin-top: 100px;
-  padding-top: 50px;
-  text-align: center;
-  background: transparent url('tool-loader.gif') center top no-repeat;
-  color: #666;
-  font-size: 20px;
+p.well {
+  width: 50%;
+  margin: auto;
 }

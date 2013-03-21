@@ -82,7 +82,7 @@ var clear_action = function() {
 var fix_button_texts = function() {
     $('#reauthenticate').removeClass('loading').html('Reauthenticate').attr('disabled', false)
     $('#submit').removeClass('loading').html('Search').attr('disabled', false)
-    $('#clear-data').removeClass('loading').html('Clear data').attr('disabled', false)
+    $('#clear-data').removeClass('loading').html('Search for something else*').attr('disabled', false)
 }
  
 // Show the right form (get settings, or the refresh data one)

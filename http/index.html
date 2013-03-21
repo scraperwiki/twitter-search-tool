@@ -15,23 +15,29 @@
   <body>
 
     <p class="settings" id="settings-auth" style="display:none">
-         <button class="btn btn-primary" type="button" id="reauthenticate" disabled="disabled">Reauthenticate</button>
+         <button class="btn btn-primary btn-large" type="button" id="reauthenticate" disabled="disabled"></button>
     </p>
 
     <div class="settings" id="settings-get" style="display:none">
+        <h1>Search for Tweets</h1>
+
           <form class="form-search">
-            <input type="text" name="q" id="q" class="input-medium search-query">
-            <button type="button" class="btn" id="submit" disabled="disabled">Search</button>
+            <div class="input-append">
+              <input type="text" name="q" id="q" class="input-medium search-query">
+              <button type="button" class="btn btn-primary" id="submit" disabled="disabled"></button>
+            </div>
           </form>
 
           <p class="well well-small"><span class="label label-info">Tip</span> You can use Twitter's advanced
            <a href="https://support.twitter.com/articles/71577-how-to-use-advanced-twitter-search">search operators</a>
-           in your query. e.g. <code>data OR journalism</code>, <code>#strataconf</code>, <code>to:bengoldacre</code>
+           in your query. <br>e.g. <code>data OR journalism</code>, <code>#strataconf</code>, <code>to:bengoldacre</code>
           </p>
     </div>
 
     <div class="settings" id="settings-clear" style="display:none">
-         <button class="btn btn-danger" type="button" id="clear-data" disabled="disabled">Clear data</button>
+         <button class="btn btn-danger btn-large" type="button" id="clear-data" disabled="disabled"></button>
+         <p>* this will clear all of your data
+         </p>
     </div>
 
   </body>
