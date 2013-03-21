@@ -15,3 +15,9 @@ p.well {
   width: 50%;
   margin: auto;
 }
+
+.alert {
+  text-align: left;
+  width: 30%;
+  margin: 0 auto 40px auto;
+}
