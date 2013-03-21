@@ -111,8 +111,8 @@ def process_results(results, query_terms):
     for tweet in results['statuses']:
         data = collections.OrderedDict()
 
-        data['id'] = tweet['id']
-        data['tweet_url'] = "https://twitter.com/" + tweet['user']['screen_name'] + "/status/" + str(tweet['id'])
+        data['id_str'] = str(tweet['id_str'])
+        data['tweet_url'] = "https://twitter.com/" + tweet['user']['screen_name'] + "/status/" + str(tweet['id_str'])
         data['created_at'] = dateutil.parser.parse(tweet['created_at'])
 
         data['text'] = tweet['text']
@@ -139,12 +139,15 @@ def process_results(results, query_terms):
         # first media (twitpic) url from entities (media_url_https)
 
         data['query'] = query_terms
-        scraperwiki.sqlite.save(['id'], data, table_name="tweets")
+	
+        scraperwiki.sqlite.save(['id_str'], data, table_name="tweets")
+    return len(results['statuses'])
 
 
 #########################################################################
 # Main code
 
+pages_got = 0
 try:
     # Parameters to this command vary:
     #   a. None: try and scrape Twitter followers
@@ -154,13 +157,13 @@ try:
         scraperwiki.sqlite.execute("drop table if exists tweets")
         scraperwiki.sqlite.execute("drop table if exists status")
         os.system("crontab -r >/dev/null 2>&1")
-        scraperwiki.sqlite.dt.create_table({'id': 1}, 'tweets')
+        scraperwiki.sqlite.dt.create_table({'id_str': '1'}, 'tweets')
         set_status_and_exit('clean-slate', 'error', 'No query set')
         sys.exit()
 
     # Make the tweets table *first* with dumb data, calling DumpTruck directly,
     # so it appears before the status one in the list
-    scraperwiki.sqlite.dt.create_table({'id': 1}, 'tweets')
+    scraperwiki.sqlite.dt.create_table({'id_str': '1'}, 'tweets')
 
     # Get query we're working on from file we store it in
     query_terms = open("query.txt").read().strip()
@@ -170,17 +173,25 @@ try:
 
     # Things basically working, so make sure we run again
     os.system("crontab tool/crontab")
-    # print (tw.application.rate_limit_status())['resources']['search']['/search/tweets']
+    # remaining = (tw.application.rate_limit_status())['resources']['search']['/search/tweets']['remaining']
 
     # Get recent Tweets, one more page worth
-    max_id = scraperwiki.sqlite.select("max(id) from tweets")[0]["max(id)"]
-    results = tw.search.tweets(q=query_terms, since_id = max_id)
-    process_results(results, query_terms)
+    got = 2
+    while got > 1:
+	max_id = scraperwiki.sqlite.select("max(id_str) from tweets")[0]["max(id_str)"]
+	results = tw.search.tweets(q=query_terms, since_id = max_id)
+	got = process_results(results, query_terms)
+        #print "max", max_id, "got", got
+	pages_got += 1
 
     # Get older tweets, one more page worth
-    min_id = scraperwiki.sqlite.select("min(id) from tweets")[0]["min(id)"]
-    results = tw.search.tweets(q=query_terms, max_id = min_id)
-    process_results(results, query_terms)
+    got = 2
+    while got > 1:
+	min_id = scraperwiki.sqlite.select("min(id_str) from tweets")[0]["min(id_str)"]
+	results = tw.search.tweets(q=query_terms, max_id = min_id)
+	got = process_results(results, query_terms)
+        #print "min", min_id, "got", got
+	pages_got += 1
 
 except twitter.api.TwitterHTTPError, e:
     if "Twitter sent status 401 for URL" in str(e):
@@ -197,13 +208,15 @@ except twitter.api.TwitterHTTPError, e:
         set_status_and_exit('not-there', 'error', 'User not on Twitter')
     if code == 88:
         # provided we got at least one page, rate limit isn't an error but expected
-	set_status_and_exit('rate-limit', 'error', 'Twitter is rate limiting you')
+    	if pages_got == 0:
+	    set_status_and_exit('rate-limit', 'error', 'Twitter is rate limiting you')
     else:
         # anything else is an unexpected error - if ones occur a lot, add the above instead
         raise
 except httplib.IncompleteRead, e:
     # I think this is effectively a rate limit error - so only count if it was first error
-    set_status_and_exit('rate-limit', 'error', 'Twitter broke the connection')
+    if pages_got == 0:
+	set_status_and_exit('rate-limit', 'error', 'Twitter broke the connection')
 
 # Save progress message
 set_status_and_exit("ok-updating", 'ok', '')
