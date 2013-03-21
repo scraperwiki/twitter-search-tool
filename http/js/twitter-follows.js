@@ -127,6 +127,7 @@ var show_hide_stuff = function(done) {
         }, function(results) {
             // this is bad as it will masks real errors - we have to show the form as
             // no SQLite database gives an error
+            fix_button_texts()
             $('#settings-get').show()
             if (done) {
                 done()
