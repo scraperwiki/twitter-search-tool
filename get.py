@@ -132,11 +132,19 @@ def process_results(results, query_terms):
         except:
             pass
 
-        # Other ideas:
-        # first URL from entities
-        # first user mention from entities
-        # first hash tag from entities
-        # first media (twitpic) url from entities (media_url_https)
+        entities = tweet.get('entities', {})
+
+        urls = entities.get('urls')
+        data['url'] = urls[0].get(u'expanded_url') if urls else ''
+
+        media = entities.get('media')
+        data['media'] = media[0].get(u'media_url_https', '') if media else ''
+
+        users = entities.get('user_mentions')
+        data['user_mention' ] = users[0].get(u'screen_name','') if users else ''
+
+        hashtags = entities.get('hashtags')
+        data['hashtags'] = hashtags[0].get(u'text','') if hashtags else ''
 
         data['query'] = query_terms
 	
