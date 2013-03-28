@@ -103,7 +103,7 @@ def set_status_and_exit(status, typ, message, extra = {}):
     requests.post("https://x.scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
     data = { 'id': 'tweets', 'current_status': status }
-    scraperwiki.sqlite.save(['id'], data, table_name='status')
+    scraperwiki.sql.save(['id'], data, table_name='status')
 
     sys.exit()
 
@@ -140,7 +140,7 @@ def process_results(results, query_terms):
 
         data['query'] = query_terms
 	
-        scraperwiki.sqlite.save(['id_str'], data, table_name="tweets")
+        scraperwiki.sql.save(['id_str'], data, table_name="tweets")
     return len(results['statuses'])
 
 
@@ -154,16 +154,16 @@ try:
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
     #   c. "clean-slate": wipe database and start again
     if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
-        scraperwiki.sqlite.execute("drop table if exists tweets")
-        scraperwiki.sqlite.execute("drop table if exists status")
+        scraperwiki.sql.execute("drop table if exists tweets")
+        scraperwiki.sql.execute("drop table if exists status")
         os.system("crontab -r >/dev/null 2>&1")
-        scraperwiki.sqlite.dt.create_table({'id_str': '1'}, 'tweets')
+        scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
         set_status_and_exit('clean-slate', 'error', 'No query set')
         sys.exit()
 
     # Make the tweets table *first* with dumb data, calling DumpTruck directly,
     # so it appears before the status one in the list
-    scraperwiki.sqlite.dt.create_table({'id_str': '1'}, 'tweets')
+    scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
 
     # Get query we're working on from file we store it in
     query_terms = open("query.txt").read().strip()
@@ -180,7 +180,7 @@ try:
     # Get recent Tweets
     got = 2
     while got > 1:
-	max_id = scraperwiki.sqlite.select("max(id_str) from tweets")[0]["max(id_str)"]
+	max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
 	results = tw.search.tweets(q=query_terms, since_id = max_id)
 	got = process_results(results, query_terms)
         #print "max", max_id, "got", got
@@ -191,7 +191,7 @@ try:
     # Get older tweets
     got = 2
     while got > 1:
-	min_id = scraperwiki.sqlite.select("min(id_str) from tweets")[0]["min(id_str)"]
+	min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
 	results = tw.search.tweets(q=query_terms, max_id = min_id)
 	got = process_results(results, query_terms)
         #print "min", min_id, "got", got
