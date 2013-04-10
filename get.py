@@ -179,8 +179,9 @@ try:
     # Connect to Twitter
     tw = do_tool_oauth()
 
-    # Things basically working, so make sure we run again
-    os.system("crontab tool/crontab")
+    # Things basically working, so make sure we run again.
+    # It only sets the crontab if there isn't one anyway, in case a programmer has changed it.
+    os.system("crontab -l >/dev/null 2>&1 || crontab tool/crontab")
     # remaining = (tw.application.rate_limit_status())['resources']['search']['/search/tweets']['remaining']
 
 
