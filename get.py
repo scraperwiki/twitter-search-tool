@@ -135,16 +135,16 @@ def process_results(results, query_terms):
         entities = tweet.get('entities', {})
 
         urls = entities.get('urls')
-        data['url'] = urls[0].get(u'expanded_url') if urls else ''
+        data['url'] = urls[0].get(u'expanded_url') if urls else None
 
         media = entities.get('media')
-        data['media'] = media[0].get(u'media_url_https', '') if media else ''
+        data['media'] = media[0].get(u'media_url_https', '') if media else None
 
         users = entities.get('user_mentions')
-        data['user_mention' ] = users[0].get(u'screen_name','') if users else ''
+        data['user_mention' ] = users[0].get(u'screen_name','') if users else None
 
         hashtags = entities.get('hashtags')
-        data['hashtags'] = hashtags[0].get(u'text','') if hashtags else ''
+        data['hashtags'] = hashtags[0].get(u'text','') if hashtags else None
 
         data['query'] = query_terms
 	
