@@ -103,7 +103,7 @@ var show_hide_stuff = function(done) {
         $('.who').text(data)
 
         // Show right form
-        scraperwiki.sql('select * from status where id = "tweets"', function(results){
+        scraperwiki.sql('select * from __status where id = "tweets"', function(results){
             results = results[0]
             console.log(results)
 

@@ -103,7 +103,7 @@ def set_status_and_exit(status, typ, message, extra = {}):
     requests.post("https://x.scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
     data = { 'id': 'tweets', 'current_status': status }
-    scraperwiki.sql.save(['id'], data, table_name='status')
+    scraperwiki.sql.save(['id'], data, table_name='__status')
 
     sys.exit()
 
@@ -157,13 +157,23 @@ def process_results(results, query_terms):
 
 pages_got = 0
 try:
+    # Rename old status table to new __status name.
+    # This can be removed after it has been active long enough to
+    # update all existing tools.
+    try :
+   	 scraperwiki.sql.execute("SELECT 1 FROM status")
+    except sqlite3.OperationalError:
+    	pass
+    else:
+        scraperwiki.sql.execute("ALTER TABLE status RENAME TO __status")
+
     # Parameters to this command vary:
     #   a. None: try and scrape Twitter followers
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
     #   c. "clean-slate": wipe database and start again
     if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
         scraperwiki.sql.execute("drop table if exists tweets")
-        scraperwiki.sql.execute("drop table if exists status")
+        scraperwiki.sql.execute("drop table if exists __status")
         os.system("crontab -r >/dev/null 2>&1")
         scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
         set_status_and_exit('clean-slate', 'error', 'No query set')
