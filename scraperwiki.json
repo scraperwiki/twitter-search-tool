@@ -1,4 +1,6 @@
 {
   "displayName": "Search for Tweets",
-  "description": "Choose your own keyword"
+  "description": "Choose your own keyword",
+  "icon": "https://s3-eu-west-1.amazonaws.com/sw-icons/tool-icon-twitter.png",
+  "color": "#3cf"
 }
