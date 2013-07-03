@@ -1,6 +1,0 @@
-SHELL=/bin/bash
-
-# Sleep to spread the cron jobs out across the hour randomly.
-@hourly sleep $((RANDOM\%40))m; ./tool/get.py
-
-
