@@ -191,15 +191,14 @@ try:
     tw = do_tool_oauth()
 
     # Things basically working, so make sure we run again by writing a crontab.
-    crontab = open("tool/crontab.template").read()
-    # ... run at a random minute to distribute load XXX platform should do this for us
-    crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
-    open("crontab", "w").write(crontab)
-    # XXX disabled feature -- it only sets the crontab if there isn't one anyway, in case a programmer has changed it.
-    # crontab -l >crontab-current 2>&1 ||
-    os.system("crontab -l >crontab-current 2>&1; diff crontab crontab-current >/dev/null 2>&1 || crontab crontab")
+    if not os.path.isfile("crontab"):
+        crontab = open("tool/crontab.template").read()
+	# ... run at a random minute to distribute load XXX platform should do this for us
+	crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
+	open("crontab", "w").write(crontab)
+    os.system("crontab crontab")
+
     # remaining = (tw.application.rate_limit_status())['resources']['search']['/search/tweets']['remaining']
-    sys.exit()
 
     onetime = 'ONETIME' in os.environ
     # Get recent Tweets
