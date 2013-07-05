@@ -101,7 +101,7 @@ def set_status_and_exit(status, typ, message, extra = {}):
     extra['status'] = status
     print json.dumps(extra)
 
-    requests.post("https://x.scraperwiki.com/api/status", data={'type':typ, 'message':message})
+    requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
     data = { 'id': 'tweets', 'current_status': status }
     scraperwiki.sql.save(['id'], data, table_name='__status')
