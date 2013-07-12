@@ -14,6 +14,7 @@ import datetime
 import scraperwiki
 import httplib
 import random
+import codecs
 
 from secrets import *
 
@@ -185,7 +186,7 @@ try:
     scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
 
     # Get query we're working on from file we store it in
-    query_terms = open("query.txt").read().strip()
+    query_terms = codecs.open("query.txt", "r", "utf-8").read().strip()
 
     # Connect to Twitter
     tw = do_tool_oauth()
