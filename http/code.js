@@ -122,6 +122,10 @@ var show_hide_stuff = function(done) {
                 var p = $('<p>').addClass('alert alert-warning').html('<b>Twitter is rate limiting you!</b> Things to try: <ul> <li>Reduce the number of Twitter tools you have</li> <li>Check for <a href="https://twitter.com/settings/applications">other Twitter applications</a> and revoke access</li> </ul>')
                 $('body').prepend(p)
                 $('#settings-clear').show()
+            } else if (results['current_status'] == 'invalid-query') {
+                var p = $('<p>').addClass('alert alert-warning').html("<b>That query didn't work!</b> It isn't a valid Twitter search.")
+                $('body').prepend(p)
+                $('#settings-get').show()
             } else if (results['current_status'] == 'clean-slate') {
                 $('#settings-get').show()
             } else if (results['current_status'] == 'ok-updating') {
