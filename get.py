@@ -237,6 +237,8 @@ except twitter.api.TwitterHTTPError, e:
     # rate limit exceeded
     if code == 34:
         set_status_and_exit('not-there', 'error', 'User not on Twitter')
+    if code == 195:
+        set_status_and_exit('invalid-query', 'error', "That isn't a valid query on Twitter")
     if code == 88:
         # provided we got at least one page, rate limit isn't an error but expected
     	if pages_got == 0:
