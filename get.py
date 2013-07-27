@@ -110,6 +110,7 @@ def set_status_and_exit(status, typ, message, extra = {}):
     sys.exit()
 
 def process_results(results, query_terms):
+    datas = []
     for tweet in results['statuses']:
         data = collections.OrderedDict()
 
@@ -149,8 +150,10 @@ def process_results(results, query_terms):
         data['hashtags'] = hashtags[0].get(u'text','') if hashtags else None
 
         data['query'] = query_terms
+
+        datas.append(data)
 	
-        scraperwiki.sql.save(['id_str'], data, table_name="tweets")
+    scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
     return len(results['statuses'])
 
 
