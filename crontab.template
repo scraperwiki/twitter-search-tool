@@ -1,5 +1,5 @@
 SHELL=/bin/bash
 
-RANDOM * * * * ./tool/get.py
+RANDOM * * * * ./tool/twsearch.py
 
 

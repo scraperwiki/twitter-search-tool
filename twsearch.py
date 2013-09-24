@@ -152,7 +152,7 @@ def process_results(results, query_terms):
         data['query'] = query_terms
 
         datas.append(data)
-	
+
     scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
     return len(results['statuses'])
 
@@ -195,7 +195,8 @@ try:
     tw = do_tool_oauth()
 
     # Things basically working, so make sure we run again by writing a crontab.
-    if not os.path.isfile("crontab"):
+    # XXX temporarily run it all the time to change existing crontabs
+    if True: #not os.path.isfile("crontab"):
         crontab = open("tool/crontab.template").read()
 	# ... run at a random minute to distribute load XXX platform should do this for us
 	crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
@@ -233,7 +234,7 @@ except twitter.api.TwitterHTTPError, e:
 
     # https://dev.twitter.com/docs/error-codes-responses
     obj = json.loads(e.response_data)
-    code = obj['errors'][0]['code'] 
+    code = obj['errors'][0]['code']
     # authentication failure
     if (code in [32, 89]):
         clear_auth_and_restart()
