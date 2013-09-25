@@ -197,20 +197,20 @@ try:
     # Connect to Twitter
     tw = do_tool_oauth()
 
-    # Things basically working, so make sure we run again by writing a crontab.
-    if not os.path.isfile("crontab"):
-        crontab = open("tool/crontab.template").read()
-        # ... run at a random minute to distribute load XXX platform should do this for us
-        crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
-        open("crontab", "w").write(crontab)
-    os.system("crontab crontab")
-
-    # remaining = (tw.application.rate_limit_status())['resources']['search']['/search/tweets']['remaining']
-
-    assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring']
+    assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring'] # should never happen
     if mode == 'backlog-cleared':
         # we shouldn't run, because we've cleared the backlog already
         set_status_and_exit("ok-updating", 'ok', '')
+    else:
+        if 'MODE' in os.environ:
+            # frontend has defined a new mode, so we should make a new crontab
+            crontab = open("tool/crontab.template").read()
+            # run at a random minute to distribute load (platform should really do this for us!)
+            crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
+            open("crontab", "w").write(crontab)
+        # implement whatever crontab has been written to the crontab text file
+        # (this may or may not be different to the existing crontab)
+        os.system("crontab crontab")
 
     # Get tweets older than what we've already got
     got = 2
@@ -226,6 +226,7 @@ try:
     if mode == 'clearing-backlog' and page_got == 0:
         # we've reached as far back as we'll ever get, so we're done forever
         mode = 'backlog-cleared'
+        os.system("crontab -r >/dev/null 2>&1")
         set_status_and_exit("ok-updating", 'ok', '')
 
     if mode == 'monitoring':
