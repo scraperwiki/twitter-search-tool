@@ -163,16 +163,18 @@ def process_results(results, query_terms):
 # Main code
 
 pages_got = 0
-mode = 'clearing-backlog'
 onetime = 'ONETIME' in os.environ
 
-try:
+if 'MODE' in os.environ:
+    mode = os.environ['MODE']
+else:
     try:
         mode = scraperwiki.sql.select('mode from status')[0]['mode']
     except sqlite3.OperationalError:
-        # probably means 'status' doesn't exist
-        pass
+        # happens when 'status' table doesn't exist
+        mode = 'clearing-backlog'
 
+try:
     # Parameters to this command vary:
     #   a. None: try and scrape Twitter followers
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
@@ -205,7 +207,7 @@ try:
 
     # remaining = (tw.application.rate_limit_status())['resources']['search']['/search/tweets']['remaining']
 
-    assert mode is in ['clearing-backlog', 'backlog-cleared', 'monitoring']
+    assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring']
     if mode == 'backlog-cleared':
         # we shouldn't run, because we've cleared the backlog already
         set_status_and_exit("ok-updating", 'ok', '')
