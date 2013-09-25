@@ -137,6 +137,9 @@ var show_hide_stuff = function(done) {
                 $('#settings-' + results['mode']).show()
                 $('#settings-monitor-choice').show()
                 $('#monitor-future-tweets').attr('checked', results['mode'] == 'monitoring')
+		scraperwiki.sql('select min(created_at) as min, max(created_at) as max from tweets', function(range){
+                    $(".date-range").html("<br>from " + moment(range[0]['min']).format("Do MMM YYYY") + " to " + moment(range[0]['max']).format("Do MMM YYYY"))
+		})
                 $('#settings-clear').show()
             } else {
                 alert("Unknown internal state: " + results['current_status'])
