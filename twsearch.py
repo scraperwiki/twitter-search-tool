@@ -202,7 +202,7 @@ try:
         # we shouldn't run, because we've cleared the backlog already
         set_status_and_exit("ok-updating", 'ok', '')
     else:
-        if 'MODE' in os.environ:
+        if 'MODE' in os.environ or not os.path.isfile("crontab"):
             # frontend has defined a new mode, so we should make a new crontab
             crontab = open("tool/crontab.template").read()
             # run at a random minute to distribute load (platform should really do this for us!)
@@ -223,7 +223,7 @@ try:
         if onetime:
             break
 
-    if mode == 'clearing-backlog' and page_got == 0:
+    if not onetime and mode == 'clearing-backlog':
         # we've reached as far back as we'll ever get, so we're done forever
         mode = 'backlog-cleared'
         os.system("crontab -r >/dev/null 2>&1")
