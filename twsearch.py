@@ -99,12 +99,14 @@ def clear_auth_and_restart():
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
+    global mode
+
     extra['status'] = status
     print json.dumps(extra)
 
     requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
-    data = { 'id': 'tweets', 'current_status': status }
+    data = { 'id': 'tweets', 'mode': mode, 'current_status': status }
     scraperwiki.sql.save(['id'], data, table_name='__status')
 
     sys.exit()
@@ -161,7 +163,16 @@ def process_results(results, query_terms):
 # Main code
 
 pages_got = 0
+mode = 'clearing-backlog'
+onetime = 'ONETIME' in os.environ
+
 try:
+    try:
+        mode = scraperwiki.sql.select('mode from status')[0]['mode']
+    except sqlite3.OperationalError:
+        # probably means 'status' doesn't exist
+        pass
+
     # Parameters to this command vary:
     #   a. None: try and scrape Twitter followers
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
@@ -194,19 +205,12 @@ try:
 
     # remaining = (tw.application.rate_limit_status())['resources']['search']['/search/tweets']['remaining']
 
-    onetime = 'ONETIME' in os.environ
-    # Get recent Tweets
-    got = 2
-    while got > 1:
-        max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
-        results = tw.search.tweets(q=query_terms, since_id = max_id)
-        got = process_results(results, query_terms)
-        #print "max", max_id, "got", got
-        pages_got += 1
-        if onetime:
-            break
+    assert mode is in ['clearing-backlog', 'backlog-cleared', 'monitoring']
+    if mode == 'backlog-cleared':
+        # we shouldn't run, because we've cleared the backlog already
+        set_status_and_exit("ok-updating", 'ok', '')
 
-    # Get older tweets
+    # Get tweets older than what we've already got
     got = 2
     while got > 1:
         min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
@@ -216,6 +220,23 @@ try:
         pages_got += 1
         if onetime:
             break
+
+    if mode == 'clearing-backlog' and page_got == 0:
+        # we've reached as far back as we'll ever get, so we're done forever
+        mode = 'backlog-cleared'
+        set_status_and_exit("ok-updating", 'ok', '')
+
+    if mode == 'monitoring':
+        # Get tweets more recent than what we've already got
+        got = 2
+        while got > 1:
+            max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+            results = tw.search.tweets(q=query_terms, since_id = max_id)
+            got = process_results(results, query_terms)
+            #print "max", max_id, "got", got
+            pages_got += 1
+            if onetime:
+                break
 
 except twitter.api.TwitterHTTPError, e:
     if "Twitter sent status 401 for URL" in str(e):
