@@ -37,7 +37,7 @@ var done_exec_main = function(content) {
 // Calls out to the Python script twsearch.py, which does the actual Twitter
 // calling.
 var scrape_action = function() {
-    $('pre,.alert,.help-inline').remove()
+    $('pre, .alert, .help-inline').remove()
     $('.control-group').removeClass('error')
 
     var q = $('#q').val()
@@ -58,6 +58,24 @@ var scrape_action = function() {
         }
     )
 }
+
+// Button to toggle monitoring mode
+var toggle_monitoring_mode = function() {
+    var new_mode
+    if (this.checked) {
+        new_mode = 'monitoring'
+    } else {
+        new_mode = 'clearing-backlog'
+    }
+
+    scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; MODE=' + new_mode + ' ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
+        done_exec_main,
+        function(obj, err, exception) {
+            something_went_wrong(err + "! " + exception)
+        }
+    )
+}
+
 
 // Clear data and start again
 var clear_action = function() {
@@ -96,24 +114,29 @@ var show_hide_stuff = function(done) {
             $('.settings').hide()
             fix_button_texts()
 
-            if (results['current_status'] == 'auth-redirect') {
+            if (results['current_status'] == 'rate-limit') {
+                var p = $('<p>').addClass('alert alert-warning').html('<b>Twitter is rate limiting you!</b> Things to try: <ul> <li>Reduce the number of Twitter tools you have</li> <li>Check for <a href="https://twitter.com/settings/applications">other Twitter applications</a> and revoke access</li> </ul>')
+                $('body').prepend(p)
+                results['current-status'] == 'ok-updating'
+            }
+
+            if (results['current_status'] == 'clean-slate') {
+                $('#settings-get').show()
+            } else if (results['current_status'] == 'invalid-query') {
+                var p = $('<p>').addClass('alert alert-warning').html("<b>That query didn't work!</b> It isn't a valid Twitter search.")
+                $('body').prepend(p)
+                $('#settings-get').show()
+            } else if (results['current_status'] == 'auth-redirect') {
                 $('#settings-auth').show()
                 $('#settings-clear').show()
                 // if during auth, click it
                 if (oauth_verifier) {
                     $("#reauthenticate").trigger("click")
                 }
-            } else if (results['current_status'] == 'rate-limit') {
-                var p = $('<p>').addClass('alert alert-warning').html('<b>Twitter is rate limiting you!</b> Things to try: <ul> <li>Reduce the number of Twitter tools you have</li> <li>Check for <a href="https://twitter.com/settings/applications">other Twitter applications</a> and revoke access</li> </ul>')
-                $('body').prepend(p)
-                $('#settings-clear').show()
-            } else if (results['current_status'] == 'invalid-query') {
-                var p = $('<p>').addClass('alert alert-warning').html("<b>That query didn't work!</b> It isn't a valid Twitter search.")
-                $('body').prepend(p)
-                $('#settings-get').show()
-            } else if (results['current_status'] == 'clean-slate') {
-                $('#settings-get').show()
             } else if (results['current_status'] == 'ok-updating') {
+                $('#settings-' + results['mode']).show()
+                $('#settings-monitor-choice').show()
+                $('#monitor-future-tweets').attr('checked', results['mode'] == 'monitoring')
                 $('#settings-clear').show()
             } else {
                 alert("Unknown internal state: " + results['current_status'])
@@ -160,5 +183,6 @@ $(document).ready(function() {
     })
 
     $('#clear-data').on('click', clear_action)
-    $('#submit,#reauthenticate,#refresh').on('click', scrape_action)
+    $('#submit, #reauthenticate, #refresh').on('click', scrape_action)
+    $('#monitor-future-tweets').on('change', toggle_monitoring_mode)
 })
