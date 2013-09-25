@@ -26,3 +26,19 @@ p.well {
   margin-bottom: 40px;
 }
 
+#settings-monitor-choice label {
+  /* make checkbox label bigger */
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: inherit;
+  /* more differentiation from the stuff below it */
+  margin-bottom: 25px;
+  color: #666;
+}
+
+#settings-monitor-choice input {
+  margin: 0 5px 0 0;
+  /* compensate for larger label height */
+  vertical-align: 0;
+}
+
