@@ -104,7 +104,7 @@ var show_hide_stuff = function(done) {
     scraperwiki.exec('touch query.txt; cat query.txt', function(data) {
         data = $.trim(data)
         $('#q').val(data)
-        $('.who').text(data)
+        $('.search-query').text(data)
 
         // Show right form
         scraperwiki.sql('select * from __status where id = "tweets"', function(results){
