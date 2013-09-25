@@ -44,12 +44,6 @@ var scrape_action = function() {
 
     $(this).addClass('loading').html('Loading&hellip;').attr('disabled', true)
 
-    // Rename the dataset in the user interface
-    // (only when they press the main submit button - not for refreshes)
-    if ($(this).attr('id') == 'submit') {
-        scraperwiki.dataset.name("Tweets matching '" + q + "'")
-    }
-
     // Pass various OAuth bits of data to the Python script that is going to do the work
     scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
         done_exec_main,
@@ -133,6 +127,8 @@ var show_hide_stuff = function(done) {
                 if (oauth_verifier) {
                     $("#reauthenticate").trigger("click")
                 }
+                // Rename the dataset in the user interface
+                scraperwiki.dataset.name("Tweets matching '" + data + "'")
             } else if (results['current_status'] == 'ok-updating') {
                 $('#settings-' + results['mode']).show()
                 $('#settings-monitor-choice').show()
