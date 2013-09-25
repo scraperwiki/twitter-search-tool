@@ -82,7 +82,7 @@ var clear_action = function() {
     $(this).addClass('loading').html('Clearing&hellip;').attr('disabled', true)
     $('pre,.alert,.help-inline').remove()
 
-    scraperwiki.tool.rename("Search for Tweets")
+    scraperwiki.dataset.name("Search for Tweets")
     scraperwiki.exec("tool/twsearch.py clean-slate",
         done_exec_main,
         function(obj, err, exception) {
