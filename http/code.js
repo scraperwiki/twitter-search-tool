@@ -104,7 +104,6 @@ var show_hide_stuff = function(done) {
                     $("#reauthenticate").trigger("click")
                 }
             } else if (results['current_status'] == 'rate-limit') {
-                $('#settings-working').show()
                 var p = $('<p>').addClass('alert alert-warning').html('<b>Twitter is rate limiting you!</b> Things to try: <ul> <li>Reduce the number of Twitter tools you have</li> <li>Check for <a href="https://twitter.com/settings/applications">other Twitter applications</a> and revoke access</li> </ul>')
                 $('body').prepend(p)
                 $('#settings-clear').show()
@@ -115,7 +114,6 @@ var show_hide_stuff = function(done) {
             } else if (results['current_status'] == 'clean-slate') {
                 $('#settings-get').show()
             } else if (results['current_status'] == 'ok-updating') {
-                $('#settings-working').show()
                 $('#settings-clear').show()
             } else {
                 alert("Unknown internal state: " + results['current_status'])
