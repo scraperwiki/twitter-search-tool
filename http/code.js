@@ -175,7 +175,7 @@ scraperwiki.tool.getURL(function(our_url) {
     // go multiple times to Twitter
     callback_url = url.attr('base') + url.attr('path')
     // only when we have the callback URL, allow the submit button to be clicked
-    $("#submit,#refresh,#reauthenticate,#clear-data").removeAttr("disabled")
+    $("#submit,#reauthenticate,#clear-data").removeAttr("disabled")
 })
 
 $(document).ready(function() {
@@ -188,6 +188,6 @@ $(document).ready(function() {
     })
 
     $('#clear-data').on('click', clear_action)
-    $('#submit, #reauthenticate, #refresh').on('click', scrape_action)
+    $('#submit, #reauthenticate').on('click', scrape_action)
     $('#monitor-future-tweets').on('change', toggle_monitoring_mode)
 })
