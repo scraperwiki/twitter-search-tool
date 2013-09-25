@@ -195,8 +195,7 @@ try:
     tw = do_tool_oauth()
 
     # Things basically working, so make sure we run again by writing a crontab.
-    # XXX temporarily run it all the time to change existing crontabs
-    if True: #not os.path.isfile("crontab"):
+    if not os.path.isfile("crontab"):
         crontab = open("tool/crontab.template").read()
 	# ... run at a random minute to distribute load XXX platform should do this for us
 	crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
