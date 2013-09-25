@@ -35,7 +35,7 @@ var done_exec_main = function(content) {
 
 // Event function for when they click on the Go!, Refresh! or Reauthenticate buttons.
 // Calls out to the Python script twsearch.py, which does the actual Twitter
-// calling. 
+// calling.
 var scrape_action = function() {
     $('pre,.alert,.help-inline').remove()
     $('.control-group').removeClass('error')
@@ -51,8 +51,8 @@ var scrape_action = function() {
     }
 
     // Pass various OAuth bits of data to the Python script that is going to do the work
-    scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"', 
-        done_exec_main, 
+    scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
+        done_exec_main,
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }
@@ -68,7 +68,7 @@ var clear_action = function() {
     scraperwiki.exec("tool/twsearch.py clean-slate",
         done_exec_main,
         function(obj, err, exception) {
-            something_went_wrong(err + "! " + exception) 
+            something_went_wrong(err + "! " + exception)
         }
     )
 }
@@ -79,7 +79,7 @@ var fix_button_texts = function() {
     $('#submit').removeClass('loading').html('Search').attr('disabled', false)
     $('#clear-data').removeClass('loading').html('Search for something else*').attr('disabled', false)
 }
- 
+
 // Show the right form (get settings, or the refresh data one)
 var show_hide_stuff = function(done) {
     // Find out what user it is
@@ -95,7 +95,7 @@ var show_hide_stuff = function(done) {
 
             $('.settings').hide()
             fix_button_texts()
-       
+
             if (results['current_status'] == 'auth-redirect') {
                 $('#settings-auth').show()
                 $('#settings-clear').show()
@@ -146,7 +146,7 @@ scraperwiki.tool.getURL(function(our_url) {
     var url = $.url(our_url)
     oauth_verifier = url.param('oauth_verifier')
     // remove query parameters for the callback URL, so they don't stack up if we
-    // go multiple times to Twitter 
+    // go multiple times to Twitter
     callback_url = url.attr('base') + url.attr('path')
     // only when we have the callback URL, allow the submit button to be clicked
     $("#submit,#refresh,#reauthenticate,#clear-data").removeAttr("disabled")
