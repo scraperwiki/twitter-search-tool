@@ -197,9 +197,9 @@ try:
     # Things basically working, so make sure we run again by writing a crontab.
     if not os.path.isfile("crontab"):
         crontab = open("tool/crontab.template").read()
-	# ... run at a random minute to distribute load XXX platform should do this for us
-	crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
-	open("crontab", "w").write(crontab)
+        # ... run at a random minute to distribute load XXX platform should do this for us
+        crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
+        open("crontab", "w").write(crontab)
     os.system("crontab crontab")
 
     # remaining = (tw.application.rate_limit_status())['resources']['search']['/search/tweets']['remaining']
@@ -208,24 +208,24 @@ try:
     # Get recent Tweets
     got = 2
     while got > 1:
-	max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
-	results = tw.search.tweets(q=query_terms, since_id = max_id)
-	got = process_results(results, query_terms)
+        max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+        results = tw.search.tweets(q=query_terms, since_id = max_id)
+        got = process_results(results, query_terms)
         #print "max", max_id, "got", got
-	pages_got += 1
-	if onetime:
-	    break
+        pages_got += 1
+        if onetime:
+            break
 
     # Get older tweets
     got = 2
     while got > 1:
-	min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
-	results = tw.search.tweets(q=query_terms, max_id = min_id)
-	got = process_results(results, query_terms)
+        min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
+        results = tw.search.tweets(q=query_terms, max_id = min_id)
+        got = process_results(results, query_terms)
         #print "min", min_id, "got", got
-	pages_got += 1
-	if onetime:
-	    break
+        pages_got += 1
+        if onetime:
+            break
 
 except twitter.api.TwitterHTTPError, e:
     if "Twitter sent status 401 for URL" in str(e):
@@ -244,15 +244,15 @@ except twitter.api.TwitterHTTPError, e:
         set_status_and_exit('invalid-query', 'error', "That isn't a valid query on Twitter")
     if code == 88:
         # provided we got at least one page, rate limit isn't an error but expected
-    	if pages_got == 0:
-	    set_status_and_exit('rate-limit', 'error', 'Twitter is rate limiting you')
+        if pages_got == 0:
+            set_status_and_exit('rate-limit', 'error', 'Twitter is rate limiting you')
     else:
         # anything else is an unexpected error - if ones occur a lot, add the above instead
         raise
 except httplib.IncompleteRead, e:
     # I think this is effectively a rate limit error - so only count if it was first error
     if pages_got == 0:
-	set_status_and_exit('rate-limit', 'error', 'Twitter broke the connection')
+        set_status_and_exit('rate-limit', 'error', 'Twitter broke the connection')
 
 # Save progress message
 set_status_and_exit("ok-updating", 'ok', '')
