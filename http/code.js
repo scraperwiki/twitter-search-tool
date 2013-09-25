@@ -127,12 +127,14 @@ var show_hide_stuff = function(done) {
                 $('body').prepend(p)
                 $('#settings-get').show()
             } else if (results['current_status'] == 'auth-redirect') {
-                $('#settings-auth').show()
-                $('#settings-clear').show()
                 // if during auth, click it
                 if (oauth_verifier) {
-                    $("#reauthenticate").trigger("click")
-                }
+                    $('#settings-get').show()
+                    $("#submit").trigger("click")
+                } else {
+                    $('#settings-auth').show()
+                    $('#settings-clear').show()
+		}
                 // Rename the dataset in the user interface
                 scraperwiki.dataset.name("Tweets matching '" + data + "'")
             } else if (results['current_status'] == 'ok-updating') {
