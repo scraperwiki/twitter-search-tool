@@ -23,20 +23,6 @@ var done_exec_main = function(content) {
             return
         }
 
-        if (response['status'] == 'ok-updating') {
-            // set another (full) run going in the background to start getting older tweets
-            scraperwiki.exec('tool/twsearch.py >/dev/null 2>&1 &', 
-              function() {
-                  var datasetUrl = "/dataset/" + scraperwiki.box
-                  scraperwiki.tool.redirect(datasetUrl)
-              },
-              function(obj, err, exception) {
-                  something_went_wrong(err + "! " + exception)
-              }
-            )
-            return
-        }
-
         // Show whatever we would on loading page
         // i.e. read status from database that twsearch.py set
         show_hide_stuff()
