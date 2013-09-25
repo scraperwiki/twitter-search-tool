@@ -68,7 +68,7 @@ var toggle_monitoring_mode = function() {
         new_mode = 'clearing-backlog'
     }
 
-    scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; MODE=' + new_mode + ' ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
+    scraperwiki.exec('MODE=' + new_mode + ' ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
         done_exec_main,
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
