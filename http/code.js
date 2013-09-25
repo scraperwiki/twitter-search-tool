@@ -62,8 +62,14 @@ var toggle_monitoring_mode = function() {
         new_mode = 'clearing-backlog'
     }
 
+    var $checkbox = $(this)
+    $checkbox.hide().next().show()
+
     scraperwiki.exec('MODE=' + new_mode + ' ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
-        done_exec_main,
+        function(data) {
+            $checkbox.show().next().hide()
+            done_exec_main(data)
+        },
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }

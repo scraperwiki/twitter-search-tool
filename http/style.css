@@ -36,7 +36,8 @@ p.well {
   color: #666;
 }
 
-#settings-monitor-choice input {
+#settings-monitor-choice input, 
+#settings-monitor-choice img {
   margin: 0 5px 0 0;
   /* compensate for larger label height */
   vertical-align: 0;
