@@ -169,9 +169,9 @@ if 'MODE' in os.environ:
     mode = os.environ['MODE']
 else:
     try:
-        mode = scraperwiki.sql.select('mode from status')[0]['mode']
+        mode = scraperwiki.sql.select('mode from __status')[0]['mode']
     except sqlite3.OperationalError:
-        # happens when 'status' table doesn't exist
+        # happens when '__status' table doesn't exist
         mode = 'clearing-backlog'
 
 try:
