@@ -117,7 +117,7 @@ var show_hide_stuff = function(done) {
             if (results['current_status'] == 'rate-limit') {
                 var p = $('<p>').addClass('alert alert-warning').html('<b>Twitter is rate limiting you!</b> Things to try: <ul> <li>Reduce the number of Twitter tools you have</li> <li>Check for <a href="https://twitter.com/settings/applications">other Twitter applications</a> and revoke access</li> </ul>')
                 $('body').prepend(p)
-                results['current-status'] == 'ok-updating'
+                results['current_status'] = 'ok-updating'
             }
 
             if (results['current_status'] == 'clean-slate') {
