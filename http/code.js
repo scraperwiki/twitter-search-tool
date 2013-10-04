@@ -2,7 +2,7 @@
 var something_went_wrong = function(content) {
     console.log("something_went_wrong", content)
     fix_button_texts()
-    $('pre,.alert,.help-inline').remove()
+    $('pre,.alert-error,.help-inline').remove()
     var p = $('<p>').addClass('alert alert-error').html('<b>Something went wrong!</b> Click here to show technical details.').on('click', function() {
         $(this).next('pre').toggle()
     }).css('cursor', 'pointer')
@@ -37,7 +37,7 @@ var done_exec_main = function(content) {
 // Calls out to the Python script twsearch.py, which does the actual Twitter
 // calling.
 var scrape_action = function() {
-    $('pre, .alert, .help-inline').remove()
+    $('pre, .alert-error, .help-inline').remove()
     $('.control-group').removeClass('error')
 
     var q = $('#q').val()
@@ -116,7 +116,7 @@ var diagnostics_action = function() {
 // Clear data and start again
 var clear_action = function() {
     $(this).addClass('loading').html('Clearing&hellip;').attr('disabled', true)
-    $('pre,.alert,.help-inline').remove()
+    $('pre,.alert-error,.help-inline').remove()
 
     scraperwiki.dataset.name("Search for Tweets")
     scraperwiki.exec("tool/twsearch.py clean-slate",
