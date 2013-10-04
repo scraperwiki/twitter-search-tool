@@ -208,6 +208,10 @@ try:
         diagnostics['_account_settings'] = tw.account.settings()
         diagnostics['user'] = diagnostics['_account_settings']['screen_name']
 
+        statuses = scraperwiki.sql.select('* from __status')[0]
+        diagnostics['mode'] = statuses['mode']
+        diagnostics['status'] = statuses['current_status']
+
         print json.dumps(diagnostics)
         sys.exit()
 

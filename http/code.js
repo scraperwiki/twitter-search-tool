@@ -101,9 +101,12 @@ var diagnostics_action = function() {
 	    }
 	    console.log(diagnostics)
     	    var html = ''
-	    html += 'Authenticated user is <b>@' + diagnostics['user'] + '</b>. '
-    	    html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
-    	    html += 'resetting ' + moment.unix(diagnostics.reset).fromNow() + "."
+            html += 'Mode is <b>' + diagnostics.mode + '</b>, status <b>' + diagnostics.status + '</b>.'
+            if (diagnostics['user']) {
+		    html += ' Authenticated user is <b>@' + diagnostics.user + '</b>. '
+		    html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
+		    html += 'resetting <b>' + moment.unix(diagnostics.reset).fromNow() + "</b>. "
+            }
 	    $('#diagnostics-area .alert').html(html).show(400)
 	},
         function(obj, err, exception) {
