@@ -43,9 +43,11 @@ p.well {
   vertical-align: 0;
 }
 
-#diagnostics {
+#diagnostics-link {
   font-size: 16px;
   float: right;
+}
+#diagnostics {
   cursor: pointer;
 }
 #diagnostics-area {

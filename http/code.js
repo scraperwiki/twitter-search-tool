@@ -79,11 +79,17 @@ var toggle_monitoring_mode = function() {
 
 // Show rate liit and so on
 var diagnostics_action = function() {
-    //$(this).addClass('loading').html('Loading&hellip;').attr('disabled', true)
+    var $link = $(this)
+    if ($('#diagnostics-area .alert').is(":visible")) {
+    	$('#diagnostics-area .alert').hide(400)
+	return
+    }
+    $link.next().show()
 
     // Pass various OAuth bits of data to the Python script that is going to do the work
     scraperwiki.exec('tool/twsearch.py diagnostics',
         function (content) {
+            $link.next().hide()
             var diagnostics
 	    try {
 		diagnostics = JSON.parse(content)
@@ -98,7 +104,7 @@ var diagnostics_action = function() {
 	    html += 'Authenticated user is <b>@' + diagnostics['user'] + '</b>. '
     	    html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
     	    html += 'resetting ' + moment.unix(diagnostics.reset).fromNow() + "."
-	    $('#diagnostics-area p').html(html).show(400)
+	    $('#diagnostics-area .alert').html(html).show(400)
 	},
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
