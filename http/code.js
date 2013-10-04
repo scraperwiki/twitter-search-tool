@@ -77,6 +77,36 @@ var toggle_monitoring_mode = function() {
 }
 
 
+// Show rate liit and so on
+var diagnostics_action = function() {
+    //$(this).addClass('loading').html('Loading&hellip;').attr('disabled', true)
+
+    // Pass various OAuth bits of data to the Python script that is going to do the work
+    scraperwiki.exec('tool/twsearch.py diagnostics',
+        function (content) {
+            var diagnostics
+	    try {
+		diagnostics = JSON.parse(content)
+	    } catch(e) {
+                console.log("caught!!") 
+		// Otherwise an unknown error - e.g. an unexpected stack trace
+		something_went_wrong(content)
+		return
+	    }
+	    console.log(diagnostics)
+    	    var html = ''
+	    html += 'Authenticated user is <b>@' + diagnostics['user'] + '</b>. '
+    	    html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
+    	    html += 'resetting ' + moment.unix(diagnostics.reset).fromNow() + "."
+	    $('#diagnostics-area p').html(html).show(400)
+	},
+        function(obj, err, exception) {
+            something_went_wrong(err + "! " + exception)
+        }
+    )
+}
+
+
 // Clear data and start again
 var clear_action = function() {
     $(this).addClass('loading').html('Clearing&hellip;').attr('disabled', true)
@@ -192,4 +222,5 @@ $(document).ready(function() {
     $('#clear-data').on('click', clear_action)
     $('#submit, #reauthenticate').on('click', scrape_action)
     $('#monitor-future-tweets').on('change', toggle_monitoring_mode)
+    $('#diagnostics').on('click', diagnostics_action)
 })

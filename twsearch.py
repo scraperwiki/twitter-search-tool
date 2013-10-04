@@ -197,6 +197,20 @@ try:
     # Connect to Twitter
     tw = do_tool_oauth()
 
+    # Called for diagnostic information only
+    if len(sys.argv) > 1 and sys.argv[1] == 'diagnostics':
+        diagnostics = {}
+        diagnostics['_rate_limit_status'] = tw.application.rate_limit_status()
+        diagnostics['limit'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['limit']
+        diagnostics['remaining'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['remaining']
+        diagnostics['reset'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['reset']
+        diagnostics['_account_settings'] = tw.account.settings()
+        diagnostics['user'] = diagnostics['_account_settings']['screen_name']
+
+        print json.dumps(diagnostics)
+        sys.exit()
+
+    # Mode changes
     assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring'] # should never happen
     if mode == 'backlog-cleared':
         # we shouldn't run, because we've cleared the backlog already
@@ -223,14 +237,14 @@ try:
         if onetime:
             break
 
+    # we've reached as far back as we'll ever get, so we're done forever
     if not onetime and mode == 'clearing-backlog':
-        # we've reached as far back as we'll ever get, so we're done forever
         mode = 'backlog-cleared'
         os.system("crontab -r >/dev/null 2>&1")
         set_status_and_exit("ok-updating", 'ok', '')
 
+    # Get tweets more recent than what we've already got
     if mode == 'monitoring':
-        # Get tweets more recent than what we've already got
         got = 2
         while got > 1:
             max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]

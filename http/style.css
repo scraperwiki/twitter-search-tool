@@ -43,3 +43,15 @@ p.well {
   vertical-align: 0;
 }
 
+#diagnostics {
+  font-size: 16px;
+  float: right;
+  cursor: pointer;
+}
+#diagnostics-area {
+
+}
+
+
+
+
