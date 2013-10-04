@@ -184,6 +184,7 @@ try:
         scraperwiki.sql.execute("drop table if exists __status")
         os.system("crontab -r >/dev/null 2>&1")
         scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
+        mode = 'clearing-backlog'
         set_status_and_exit('clean-slate', 'error', 'No query set')
         sys.exit()
 
