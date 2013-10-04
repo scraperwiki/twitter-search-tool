@@ -41,6 +41,7 @@ var scrape_action = function() {
     $('.control-group').removeClass('error')
 
     var q = $('#q').val()
+    scraperwiki.dataset.name("Tweets matching '" + q + "'")
 
     $(this).addClass('loading').html('Loading&hellip;').attr('disabled', true)
 
