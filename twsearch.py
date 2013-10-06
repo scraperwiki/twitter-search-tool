@@ -212,6 +212,9 @@ try:
         diagnostics['mode'] = statuses['mode']
         diagnostics['status'] = statuses['current_status']
 
+        crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
+        diagnostics['crontab'] = crontab
+
         print json.dumps(diagnostics)
         sys.exit()
 
