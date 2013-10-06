@@ -12,7 +12,7 @@ var something_went_wrong = function(content) {
 }
 
 // Handle response from exec of twsearch.py
-var done_exec_main = function(content) {
+var done_exec_main = function(content, rename) {
     console.log(content)
     try {
         response = JSON.parse(content)
@@ -25,7 +25,7 @@ var done_exec_main = function(content) {
 
         // Show whatever we would on loading page
         // i.e. read status from database that twsearch.py set
-        show_hide_stuff()
+        show_hide_stuff(null, rename)
     } catch(e) {
         // Otherwise an unknown error - e.g. an unexpected stack trace
         something_went_wrong(content)
@@ -41,13 +41,14 @@ var scrape_action = function() {
     $('.control-group').removeClass('error')
 
     var q = $('#q').val()
-    scraperwiki.dataset.name("Tweets matching '" + q + "'")
 
     $(this).addClass('loading').html('Loading&hellip;').attr('disabled', true)
 
     // Pass various OAuth bits of data to the Python script that is going to do the work
     scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
-        done_exec_main,
+        function(content) {
+	    done_exec_main(content, true)
+	},
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }
@@ -139,12 +140,16 @@ var fix_button_texts = function() {
 }
 
 // Show the right form (get settings, or the refresh data one)
-var show_hide_stuff = function(done) {
+var show_hide_stuff = function(done, rename) {
     // Find out what user it is
     scraperwiki.exec('touch query.txt; cat query.txt', function(data) {
         data = $.trim(data)
         $('#q').val(data)
         $('.search-query').text(data)
+
+        if (rename) {
+            scraperwiki.dataset.name("Tweets matching '" + data + "'")
+        }
 
         // Show right form
         scraperwiki.sql('select * from __status where id = "tweets"', function(results){
