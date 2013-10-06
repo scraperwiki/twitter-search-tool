@@ -132,7 +132,9 @@ var clear_action = function() {
 
     scraperwiki.dataset.name("Search for Tweets")
     scraperwiki.exec("tool/twsearch.py clean-slate",
-        done_exec_main,
+	function(content) {
+	    done_exec_main(content, false)
+	},
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }
