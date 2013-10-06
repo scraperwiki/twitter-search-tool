@@ -47,6 +47,8 @@ var scrape_action = function() {
     // Pass various OAuth bits of data to the Python script that is going to do the work
     scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
         function(content) {
+	    // Set it going immediately in the background for a bit more instant gratification
+            scraperwiki.exec('tool/twsearch.py >/dev/null 2>&1 &')
 	    done_exec_main(content, true)
 	},
         function(obj, err, exception) {
