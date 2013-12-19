@@ -65,8 +65,10 @@ var toggle_monitoring_mode = function() {
     var new_mode
     if (this.checked) {
         new_mode = 'monitoring'
+        scraperwiki.reporting.user({increments: {ts_schedules: 1}})
     } else {
         new_mode = 'clearing-backlog'
+        scraperwiki.reporting.user({increments: {ts_schedules: -1}})
     }
 
     var $checkbox = $(this)
