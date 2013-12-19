@@ -44,6 +44,9 @@ var scrape_action = function() {
 
     $(this).addClass('loading').html('Loading&hellip;').attr('disabled', true)
 
+    // show_hide_stuff will check this variable later and contact intercom.io
+    window.trackSearch = true
+
     // Pass various OAuth bits of data to the Python script that is going to do the work
     scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
         function(content) {
@@ -62,8 +65,10 @@ var toggle_monitoring_mode = function() {
     var new_mode
     if (this.checked) {
         new_mode = 'monitoring'
+        scraperwiki.reporting.user({increments: {ts_schedules: 1}})
     } else {
         new_mode = 'clearing-backlog'
+        scraperwiki.reporting.user({increments: {ts_schedules: -1}})
     }
 
     var $checkbox = $(this)
@@ -131,6 +136,7 @@ var clear_action = function() {
     $('pre,.alert-error,.help-inline').remove()
 
     scraperwiki.dataset.name("Search for Tweets")
+    scraperwiki.reporting.user({increments: {ts_resets: 1}})
     scraperwiki.exec("tool/twsearch.py clean-slate",
 	function(content) {
 	    done_exec_main(content, false)
@@ -199,6 +205,9 @@ var show_hide_stuff = function(done, rename) {
                     $(".date-range").html("<br>from " + moment(range[0]['min']).format("Do MMM YYYY") + " to " + moment(range[0]['max']).format("Do MMM YYYY"))
 		})
                 $('#settings-clear').show()
+                if(window.trackSearch) {
+                    scraperwiki.reporting.user({increments: {ts_searches: 1}})
+                }
             } else {
                 alert("Unknown internal state: " + results['current_status'])
             }
