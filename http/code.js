@@ -121,7 +121,7 @@ var diagnostics_action = function() {
             html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
             html += 'resetting <b>' + moment.unix(diagnostics.reset).fromNow() + "</b>. "
         }
-        if (!('crobntab' in diagnostics)) {
+        if (!('crontab' in diagnostics)) {
             html += 'Not scheduled. '
         } else if (diagnostics.crontab.match(/no crontab/)) {
             html += 'Not scheduled. '
