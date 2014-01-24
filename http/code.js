@@ -110,16 +110,23 @@ var diagnostics_action = function() {
         }
         console.log(diagnostics)
         var html = ''
-        html += 'Mode is <b>' + diagnostics.mode + '</b>, status <b>' + diagnostics.status + '</b>.'
-        if (diagnostics['user']) {
-            html += ' Authenticated user is <b>@' + diagnostics.user + '</b>. '
+        if ('mode' in diagnostics) {
+            html += 'Mode is <b>' + diagnostics.mode + '</b>. '
+        }
+        if ('status' in diagnostics) {
+            html += 'Status <b>' + diagnostics.status + '</b>. '
+        }
+        if ('user' in diagnostics) {
+            html += 'Authenticated user is <b>@' + diagnostics.user + '</b>. '
             html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
             html += 'resetting <b>' + moment.unix(diagnostics.reset).fromNow() + "</b>. "
         }
-        if (diagnostics.crontab.match(/no crontab/)) {
+        if (!('crobntab' in diagnostics)) {
+            html += 'Not scheduled. '
+        } else if (diagnostics.crontab.match(/no crontab/)) {
             html += 'Not scheduled. '
         } else {
-            html += 'Scheduled to update at <b>' + parseInt(diagnostics.crontab) + ' minutes</b> past the hour.'
+            html += 'Scheduled to update at <b>' + parseInt(diagnostics.crontab) + ' minutes</b> past the hour. '
         }
         $('#diagnostics-area .alert').html(html).slideDown(400)
     },
