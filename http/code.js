@@ -50,10 +50,10 @@ var scrape_action = function() {
     // Pass various OAuth bits of data to the Python script that is going to do the work
     scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
         function(content) {
-	    // Set it going immediately in the background for a bit more instant gratification
+        // Set it going immediately in the background for a bit more instant gratification
             scraperwiki.exec('tool/twsearch.py >/dev/null 2>&1 &')
-	    done_exec_main(content, true)
-	},
+        done_exec_main(content, true)
+    },
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }
@@ -90,8 +90,8 @@ var toggle_monitoring_mode = function() {
 var diagnostics_action = function() {
     var $link = $(this)
     if ($('#diagnostics-area .alert').is(":visible")) {
-    	$('#diagnostics-area .alert').hide(400)
-	return
+        $('#diagnostics-area .alert').slideUp(400)
+        return
     }
     $link.next().show()
 
@@ -100,29 +100,36 @@ var diagnostics_action = function() {
         function (content) {
             $link.next().hide()
             var diagnostics
-	    try {
-		diagnostics = JSON.parse(content)
-	    } catch(e) {
-                console.log("caught!!") 
-		// Otherwise an unknown error - e.g. an unexpected stack trace
-		something_went_wrong(content)
-		return
-	    }
-	    console.log(diagnostics)
-    	    var html = ''
-            html += 'Mode is <b>' + diagnostics.mode + '</b>, status <b>' + diagnostics.status + '</b>.'
-            if (diagnostics['user']) {
-	     	html += ' Authenticated user is <b>@' + diagnostics.user + '</b>. '
-		html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
-		html += 'resetting <b>' + moment.unix(diagnostics.reset).fromNow() + "</b>. "
-            }
-            if (diagnostics.crontab.match(/no crontab/)) {
-	        html += 'Not scheduled. '
-	    } else {
-	        html += 'Scheduled to update at <b>' + parseInt(diagnostics.crontab) + ' minutes</b> past the hour.'
-            }
-	    $('#diagnostics-area .alert').html(html).show(400)
-	},
+        try {
+            diagnostics = JSON.parse(content)
+        } catch(e) {
+            console.log("caught!!")
+            // Otherwise an unknown error - e.g. an unexpected stack trace
+            something_went_wrong(content)
+            return
+        }
+        console.log(diagnostics)
+        var html = ''
+        if ('mode' in diagnostics) {
+            html += 'Mode is <b>' + diagnostics.mode + '</b>. '
+        }
+        if ('status' in diagnostics) {
+            html += 'Status <b>' + diagnostics.status + '</b>. '
+        }
+        if ('user' in diagnostics) {
+            html += 'Authenticated user is <b>@' + diagnostics.user + '</b>. '
+            html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
+            html += 'resetting <b>' + moment.unix(diagnostics.reset).fromNow() + "</b>. "
+        }
+        if (!('crontab' in diagnostics)) {
+            html += 'Not scheduled. '
+        } else if (diagnostics.crontab.match(/no crontab/)) {
+            html += 'Not scheduled. '
+        } else {
+            html += 'Scheduled to update at <b>' + parseInt(diagnostics.crontab) + ' minutes</b> past the hour. '
+        }
+        $('#diagnostics-area .alert').html(html).slideDown(400)
+    },
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }
@@ -138,9 +145,9 @@ var clear_action = function() {
     scraperwiki.dataset.name("Search for Tweets")
     scraperwiki.reporting.user({increments: {ts_resets: 1}})
     scraperwiki.exec("tool/twsearch.py clean-slate",
-	function(content) {
-	    done_exec_main(content, false)
-	},
+    function(content) {
+        done_exec_main(content, false)
+    },
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }
@@ -183,12 +190,12 @@ var show_hide_stuff = function(done, rename) {
             if (results['current_status'] == 'clean-slate') {
                 $('#settings-get').show()
             } else if (results['current_status'] == 'invalid-query') {
-		console.log(results)
+        console.log(results)
                 var p = $('<p>').addClass('alert alert-warning').html("<b>That query didn't work!</b> It isn't a valid Twitter search.")
                 $('body').prepend(p)
                 $('#settings-get').show()
             } else if (results['current_status'] == 'near-not-supported') {
-		console.log(results)
+        console.log(results)
                 var p = $('<p>').addClass('alert alert-warning').html("<b>That query didn't work!</b> Twitter's API doesn't support using 'near:' to find Tweets close to a place.")
                 $('body').prepend(p)
                 $('#settings-get').show()
@@ -200,16 +207,16 @@ var show_hide_stuff = function(done, rename) {
                 } else {
                     $('#settings-auth').show()
                     $('#settings-clear').show()
-		}
+        }
                 // Rename the dataset in the user interface
                 scraperwiki.dataset.name("Tweets matching '" + data + "'")
             } else if (results['current_status'] == 'ok-updating') {
                 $('#settings-' + results['mode']).show()
                 $('#settings-monitor-choice').show()
                 $('#monitor-future-tweets').attr('checked', results['mode'] == 'monitoring')
-		scraperwiki.sql('select min(created_at) as min, max(created_at) as max from tweets', function(range){
+        scraperwiki.sql('select min(created_at) as min, max(created_at) as max from tweets', function(range){
                     $(".date-range").html("<br>from " + moment(range[0]['min']).format("Do MMM YYYY") + " to " + moment(range[0]['max']).format("Do MMM YYYY"))
-		})
+        })
                 $('#settings-clear').show()
                 if(window.trackSearch) {
                     scraperwiki.reporting.user({increments: {ts_searches: 1}})

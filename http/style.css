@@ -11,9 +11,12 @@ h2 {
   margin-right: 10px;
 }
 
-p.well {
+#search-tips {
   width: 50%;
-  margin: auto;
+  margin: 20px auto 20px auto;
+  padding: 20px 0;
+  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
 }
 
 .alert {
@@ -36,22 +39,36 @@ p.well {
   color: #666;
 }
 
-#settings-monitor-choice input, 
+#settings-monitor-choice input,
 #settings-monitor-choice img {
   margin: 0 5px 0 0;
   /* compensate for larger label height */
   vertical-align: 0;
 }
 
-#diagnostics-link {
-  font-size: 16px;
-  float: right;
+#diagnostics-area {
+  width: 50%;
+  margin: 30px auto 30px auto;
+  text-align: center;
+  font-size: 14px;
 }
+
+#diagnostics-links {
+  margin-bottom: 20px;
+  color: #ccc;
+}
+
+#diagnostics-links a {
+  color: #999;
+  padding: 0 5px;
+}
+
 #diagnostics {
   cursor: pointer;
 }
-#diagnostics-area {
-  margin-top: 40px;
+
+#diagnostics-area .alert {
+  width: auto;
 }
 
 
