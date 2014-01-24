@@ -91,7 +91,7 @@ var diagnostics_action = function() {
     var $link = $(this)
     if ($('#diagnostics-area .alert').is(":visible")) {
         $('#diagnostics-area .alert').slideUp(400)
-    return
+        return
     }
     $link.next().show()
 
@@ -101,26 +101,26 @@ var diagnostics_action = function() {
             $link.next().hide()
             var diagnostics
         try {
-        diagnostics = JSON.parse(content)
+            diagnostics = JSON.parse(content)
         } catch(e) {
-                console.log("caught!!")
-        // Otherwise an unknown error - e.g. an unexpected stack trace
-        something_went_wrong(content)
-        return
+            console.log("caught!!")
+            // Otherwise an unknown error - e.g. an unexpected stack trace
+            something_went_wrong(content)
+            return
         }
         console.log(diagnostics)
-            var html = ''
-            html += 'Mode is <b>' + diagnostics.mode + '</b>, status <b>' + diagnostics.status + '</b>.'
-            if (diagnostics['user']) {
-             html += ' Authenticated user is <b>@' + diagnostics.user + '</b>. '
-        html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
-        html += 'resetting <b>' + moment.unix(diagnostics.reset).fromNow() + "</b>. "
-            }
-            if (diagnostics.crontab.match(/no crontab/)) {
+        var html = ''
+        html += 'Mode is <b>' + diagnostics.mode + '</b>, status <b>' + diagnostics.status + '</b>.'
+        if (diagnostics['user']) {
+            html += ' Authenticated user is <b>@' + diagnostics.user + '</b>. '
+            html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '
+            html += 'resetting <b>' + moment.unix(diagnostics.reset).fromNow() + "</b>. "
+        }
+        if (diagnostics.crontab.match(/no crontab/)) {
             html += 'Not scheduled. '
         } else {
             html += 'Scheduled to update at <b>' + parseInt(diagnostics.crontab) + ' minutes</b> past the hour.'
-            }
+        }
         $('#diagnostics-area .alert').html(html).slideDown(400)
     },
         function(obj, err, exception) {
