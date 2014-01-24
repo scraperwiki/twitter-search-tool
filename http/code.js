@@ -90,7 +90,7 @@ var toggle_monitoring_mode = function() {
 var diagnostics_action = function() {
     var $link = $(this)
     if ($('#diagnostics-area .alert').is(":visible")) {
-    	$('#diagnostics-area .alert').hide(400)
+    	$('#diagnostics-area .alert').slideUp(400)
 	return
     }
     $link.next().show()
@@ -103,7 +103,7 @@ var diagnostics_action = function() {
 	    try {
 		diagnostics = JSON.parse(content)
 	    } catch(e) {
-                console.log("caught!!") 
+                console.log("caught!!")
 		// Otherwise an unknown error - e.g. an unexpected stack trace
 		something_went_wrong(content)
 		return
@@ -121,7 +121,7 @@ var diagnostics_action = function() {
 	    } else {
 	        html += 'Scheduled to update at <b>' + parseInt(diagnostics.crontab) + ' minutes</b> past the hour.'
             }
-	    $('#diagnostics-area .alert').html(html).show(400)
+	    $('#diagnostics-area .alert').html(html).slideDown(400)
 	},
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
