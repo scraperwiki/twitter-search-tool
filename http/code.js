@@ -86,7 +86,7 @@ var toggle_monitoring_mode = function() {
 }
 
 
-// Show rate liit and so on
+// Show rate limit and so on
 var diagnostics_action = function() {
     var $link = $(this)
     if ($('#diagnostics-area .alert').is(":visible")) {
