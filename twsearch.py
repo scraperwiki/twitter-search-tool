@@ -19,7 +19,7 @@ import codecs
 
 from secrets import *
 
-logf = open(os.path.expanduser("~/all.log"), 'w', buffering=1)
+logf = open(os.path.expanduser("~/all.log"), 'a', buffering=1)
 
 def log(message):
     """
