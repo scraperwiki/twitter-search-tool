@@ -39,6 +39,9 @@ def on_exit():
 atexit.register(on_exit)
 
 log("started with arguments: {!r}".format(sys.argv))
+log("started with environ: ONETIME={!r}, MODE={!r}".format(
+  os.environ.get("ONETIME"),
+  os.environ.get("MODE")))
 
 # Horrendous hack to work around some Twitter / Python incompatibility
 # http://bobrochel.blogspot.co.nz/2010/11/bad-servers-chunked-encoding-and.html
