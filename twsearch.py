@@ -267,7 +267,7 @@ try:
         min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
         results = tw.search.tweets(q=query_terms, max_id = min_id)
         got = process_results(results, query_terms)
-        #print "min", min_id, "got", got
+        log("min {} got {}".format(min_id, got))
         pages_got += 1
         if onetime:
             break
@@ -285,7 +285,7 @@ try:
             max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
             results = tw.search.tweets(q=query_terms, since_id = max_id)
             got = process_results(results, query_terms)
-            #print "max", max_id, "got", got
+            log("max {} got {}".format(max_id, got))
             pages_got += 1
             if onetime:
                 break
