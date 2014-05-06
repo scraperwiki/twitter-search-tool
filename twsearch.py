@@ -317,8 +317,3 @@ except httplib.IncompleteRead, e:
 # Save progress message
 set_status_and_exit("ok-updating", 'ok', '')
 
-
-
-
-
-
