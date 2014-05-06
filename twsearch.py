@@ -272,9 +272,10 @@ try:
     got = 2
     while got > 1:
         min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
+        log("min_id {}".format(min_id))
         results = tw.search.tweets(q=query_terms, max_id = min_id)
         got = process_results(results, query_terms)
-        log("min {} got {}".format(min_id, got))
+        log("got {}".format(got))
         pages_got += 1
         if onetime:
             break
@@ -290,9 +291,10 @@ try:
         got = 2
         while got > 1:
             max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+            log("max_id {}".format(max_id))
             results = tw.search.tweets(q=query_terms, since_id = max_id)
             got = process_results(results, query_terms)
-            log("max {} got {}".format(max_id, got))
+            log("got {}".format(got))
             pages_got += 1
             if onetime:
                 break
