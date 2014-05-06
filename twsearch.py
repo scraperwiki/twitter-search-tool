@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import atexit
 import os
 import json
 import urllib
@@ -30,6 +31,12 @@ def log(message):
     pid = os.getpid()
 
     logf.write("{} {} {}\n".format(timestamp, pid, message))
+
+
+def on_exit():
+    log("exiting (via atexit)")
+
+atexit.register(on_exit)
 
 log("started with arguments: {!r}".format(sys.argv))
 
