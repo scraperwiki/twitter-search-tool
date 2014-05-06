@@ -131,6 +131,8 @@ def set_status_and_exit(status, typ, message, extra = {}):
     data = { 'id': 'tweets', 'mode': mode, 'current_status': status }
     scraperwiki.sql.save(['id'], data, table_name='__status')
 
+    log("{} mode={!r}, status={!r}, type={!r}, message={!r}".format(
+      "set_status_and_exit", mode, status, typ, message))
     sys.exit()
 
 def process_results(results, query_terms):
