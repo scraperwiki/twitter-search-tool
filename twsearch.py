@@ -19,7 +19,7 @@ import codecs
 
 from secrets import *
 
-logf = open(os.path.expanduser("~/all.log"), 'w', buffering=1)
+logf = open(os.path.expanduser("~/all.log"), 'a', buffering=1)
 
 def log(message):
     """
@@ -39,6 +39,9 @@ def on_exit():
 atexit.register(on_exit)
 
 log("started with arguments: {!r}".format(sys.argv))
+log("started with environ: ONETIME={!r}, MODE={!r}".format(
+  os.environ.get("ONETIME"),
+  os.environ.get("MODE")))
 
 # Horrendous hack to work around some Twitter / Python incompatibility
 # http://bobrochel.blogspot.co.nz/2010/11/bad-servers-chunked-encoding-and.html
@@ -131,6 +134,8 @@ def set_status_and_exit(status, typ, message, extra = {}):
     data = { 'id': 'tweets', 'mode': mode, 'current_status': status }
     scraperwiki.sql.save(['id'], data, table_name='__status')
 
+    log("{} mode={!r}, status={!r}, type={!r}, message={!r}".format(
+      "set_status_and_exit", mode, status, typ, message))
     sys.exit()
 
 def process_results(results, query_terms):
@@ -177,6 +182,12 @@ def process_results(results, query_terms):
 
         datas.append(data)
 
+    if datas:
+        min_id = min(x['id_str'] for x in datas)
+        max_id = max(x['id_str'] for x in datas)
+        log("about to save; min_id {}, max_id {}".format(min_id, max_id))
+    else:
+        log("no datas")
     scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
     return len(results['statuses'])
 
@@ -195,6 +206,7 @@ else:
     except sqlite3.OperationalError:
         # happens when '__status' table doesn't exist
         mode = 'clearing-backlog'
+log("mode = {!r}".format(mode))
 
 try:
     # Parameters to this command vary:
@@ -260,9 +272,10 @@ try:
     got = 2
     while got > 1:
         min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
+        log("min_id {}".format(min_id))
         results = tw.search.tweets(q=query_terms, max_id = min_id)
         got = process_results(results, query_terms)
-        #print "min", min_id, "got", got
+        log("got {}".format(got))
         pages_got += 1
         if onetime:
             break
@@ -278,9 +291,10 @@ try:
         got = 2
         while got > 1:
             max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+            log("max_id {}".format(max_id))
             results = tw.search.tweets(q=query_terms, since_id = max_id)
             got = process_results(results, query_terms)
-            #print "max", max_id, "got", got
+            log("got {}".format(got))
             pages_got += 1
             if onetime:
                 break
@@ -316,9 +330,4 @@ except httplib.IncompleteRead, e:
 
 # Save progress message
 set_status_and_exit("ok-updating", 'ok', '')
-
-
-
-
-
 
