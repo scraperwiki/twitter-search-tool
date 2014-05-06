@@ -200,6 +200,7 @@ else:
     except sqlite3.OperationalError:
         # happens when '__status' table doesn't exist
         mode = 'clearing-backlog'
+log("mode = {!r}".format(mode))
 
 try:
     # Parameters to this command vary:
