@@ -18,6 +18,21 @@ import codecs
 
 from secrets import *
 
+logf = open(os.path.expanduser("~/all.log"), 'w', buffering=1)
+
+def log(message):
+    """
+    Write message to the log file with a timestamp and a pid and
+    a final newline.
+    """
+
+    timestamp = datetime.datetime.now().isoformat()
+    pid = os.getpid()
+
+    logf.write("{} {} {}\n".format(timestamp, pid, message))
+
+log("started with arguments: {!r}".format(sys.argv))
+
 # Horrendous hack to work around some Twitter / Python incompatibility
 # http://bobrochel.blogspot.co.nz/2010/11/bad-servers-chunked-encoding-and.html
 def patch_http_response_read(func):
