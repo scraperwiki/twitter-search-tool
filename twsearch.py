@@ -182,6 +182,12 @@ def process_results(results, query_terms):
 
         datas.append(data)
 
+    if datas:
+        min_id = min(x['id_str'] for x in datas)
+        max_id = max(x['id_str'] for x in datas)
+        log("about to save; min_id {}, max_id {}".format(min_id, max_id))
+    else:
+        log("no datas")
     scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
     return len(results['statuses'])
 
