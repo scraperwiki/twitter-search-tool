@@ -268,7 +268,23 @@ try:
         # (this may or may not be different to the existing crontab)
         os.system("crontab crontab")
 
-    # Get tweets older than what we've already got
+    # Get tweets older than what we've already got. There are two slightly
+    # subtle features of this code: bootstrapping, and "got > 1" (the loop
+    # termination condition).
+    #
+    # Bootstrap: at the very beginning when there are no tweets (no rows in
+    # tweets table) this code still works and gets the first batch of tweets.
+    # This is because of some rather subtle behaviour of SQL and scraperwiki.sql:
+    # When the table is empty the query "min(id_str) from tweets" will return
+    # a row with None as the value associated with the key "min(id_str)", so
+    # min_id will be set to None, and tw.search.tweets Does The Right Thing when
+    # None is used as the max_id parameter.
+    #
+    # Loop termination: Note that we search with max_id set to the id of some
+    # tweet that we have already saved, which means we'll get that tweet in our
+    # results, which means that we only have _new_ tweets if the number that we
+    # got is bigger than 1.
+
     got = 2
     while got > 1:
         min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
