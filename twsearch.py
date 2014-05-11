@@ -151,7 +151,7 @@ def process_results(results, query_terms):
         data['lang'] = tweet['lang']
 
         data['retweet_count'] = tweet['retweet_count']
-        # favorites count?
+        data['favorite_count'] = tweet['favorite_count']
         # conversation thread length?
 
         data['screen_name'] = tweet['user']['screen_name']
