@@ -315,9 +315,10 @@ try:
         if onetime:
             break
 
-    # Update the window, it now starts where we just ended
-    window_start = window_end
+    # Update the window, it now starts from our latest place forward
+    window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
     window_end = None
+    log("new window! since_id/window_start = {!r} max_id/window_end = {!r}".format(window_start, window_end))
 
     # We've reached as far back as we'll ever get, so we're done forever in one mode
     if not onetime and mode == 'clearing-backlog':
