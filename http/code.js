@@ -116,6 +116,9 @@ var diagnostics_action = function() {
         if ('status' in diagnostics) {
             html += 'Status <b>' + diagnostics.status + '</b>. '
         }
+        if ('window_start' in diagnostics) {
+            html += 'Window from <b>' + diagnostics.window_start + '</b> to <b>' + diagnostics.window_end + '</b>. '
+        }
         if ('user' in diagnostics) {
             html += 'Authenticated user is <b>@' + diagnostics.user + '</b>. '
             html += 'There are <b>' + diagnostics.remaining + '/' + diagnostics.limit + '</b> search API calls left, '

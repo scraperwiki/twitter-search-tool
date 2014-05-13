@@ -124,18 +124,18 @@ def clear_auth_and_restart():
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
-    global mode
+    global mode, window_start, window_end
 
     extra['status'] = status
     print json.dumps(extra)
 
     requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
-    data = { 'id': 'tweets', 'mode': mode, 'current_status': status }
+    data = { 'id': 'tweets', 'mode': mode, 'current_status': status, 'window_start': window_start, 'window_end': window_end }
     scraperwiki.sql.save(['id'], data, table_name='__status')
 
-    log("{} mode={!r}, status={!r}, type={!r}, message={!r}".format(
-      "set_status_and_exit", mode, status, typ, message))
+    log("{} mode={!r}, status={!r}, type={!r}, message={!r}, window={!r}-{!4}".format(
+      "set_status_and_exit", mode, status, typ, message, window_start, window_end))
     sys.exit()
 
 def process_results(results, query_terms):
@@ -209,6 +209,15 @@ else:
 log("mode = {!r}".format(mode))
 
 try:
+  window_ret = scraperwiki.sql.select('window_start, window_end from __status')
+  window_start = window_ret[0]
+  window_end = window_ret[1]
+except sqlite3.OperationalError:
+  window_start = None
+  window_end = none
+log("window_start = {!r} window_end = {!r}".format(window_start, window_end))
+
+try:
     # Parameters to this command vary:
     #   a. None: try and scrape Twitter followers
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
@@ -245,6 +254,8 @@ try:
         statuses = scraperwiki.sql.select('* from __status')[0]
         diagnostics['mode'] = statuses['mode']
         diagnostics['status'] = statuses['current_status']
+        diagnostics['window_start'] = statuses['window_start']
+        diagnostics['window_end'] = statuses['window_end']
 
         crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
         diagnostics['crontab'] = crontab
@@ -268,10 +279,9 @@ try:
         # (this may or may not be different to the existing crontab)
         os.system("crontab crontab")
 
-    # Get tweets older than what we've already got. There are two slightly
-    # subtle features of this code: bootstrapping, and "got > 1" (the loop
-    # termination condition).
+    # Get tweets older than current front of window.
     #
+    # XXX update these docs
     # Bootstrap: at the very beginning when there are no tweets (no rows in
     # tweets table) this code still works and gets the first batch of tweets.
     # This is because of some rather subtle behaviour of SQL and scraperwiki.sql:
@@ -285,35 +295,38 @@ try:
     # results, which means that we only have _new_ tweets if the number that we
     # got is bigger than 1.
 
+    # Go backwards from current window_end until we've got all we can
     got = 2
     while got > 1:
-        min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
-        log("min_id {}".format(min_id))
-        results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = min_id)
+        log("window_end = {!r}".format(window_end))
+        results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
         got = process_results(results, query_terms)
-        log("got {}".format(got))
+        log("   got backwards {}".format(got))
+        window_end = min(x['id'] for x in results['statuses'])
+        log("new window_end = {!r}".format(window_end))
+
         pages_got += 1
         if onetime:
             break
 
-    # we've reached as far back as we'll ever get, so we're done forever
+    # Update the window, it now starts where we just ended
+    window_start = window_end
+    window_end = None
+
+    # We've reached as far back as we'll ever get, so we're done forever in one mode
     if not onetime and mode == 'clearing-backlog':
         mode = 'backlog-cleared'
         os.system("crontab -r >/dev/null 2>&1")
         set_status_and_exit("ok-updating", 'ok', '')
 
-    # Get tweets more recent than what we've already got
+    # Jump window end forwards once to the most recent Tweet
     if mode == 'monitoring':
-        got = 2
-        while got > 1:
-            max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
-            log("max_id {}".format(max_id))
-            results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = max_id)
-            got = process_results(results, query_terms)
-            log("got {}".format(got))
-            pages_got += 1
-            if onetime:
-                break
+        log("jumping forwards")
+        results = tw.search.tweets(q=query_terms, result_type = 'recent')
+        got = process_results(results, query_terms)
+        log("   got forwards {}".format(got))
+        window_end = min(x['id'] for x in results['statuses'])
+        log("new window_end = {!r}".format(window_end))
 
 except twitter.api.TwitterHTTPError, e:
     if "Twitter sent status 401 for URL" in str(e):
