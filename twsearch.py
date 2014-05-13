@@ -310,7 +310,8 @@ try:
             results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
           got = process_results(results, query_terms)
           log("   got backwards {}".format(got))
-          window_end = str(min(x['id'] for x in results['statuses']))
+          if got > 0:
+            window_end = str(min(x['id'] for x in results['statuses']))
           log("new window_end = {!r}".format(window_end))
 
           pages_got += 1
