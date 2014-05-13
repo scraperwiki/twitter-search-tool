@@ -134,7 +134,7 @@ def set_status_and_exit(status, typ, message, extra = {}):
     data = { 'id': 'tweets', 'mode': mode, 'current_status': status, 'window_start': window_start, 'window_end': window_end }
     scraperwiki.sql.save(['id'], data, table_name='__status')
 
-    log("{} mode={!r}, status={!r}, type={!r}, message={!r}, window={!r}-{!4}".format(
+    log("{} mode={!r}, status={!r}, type={!r}, message={!r}, window={!r}-{!r}".format(
       "set_status_and_exit", mode, status, typ, message, window_start, window_end))
     sys.exit()
 
@@ -209,12 +209,13 @@ else:
 log("mode = {!r}".format(mode))
 
 try:
-  window_ret = scraperwiki.sql.select('window_start, window_end from __status')
-  window_start = window_ret[0]
-  window_end = window_ret[1]
+  window_start = scraperwiki.sql.select('window_start from __status')[0]['window_start']
 except sqlite3.OperationalError:
   window_start = None
-  window_end = none
+try:
+  window_end = scraperwiki.sql.select('window_end from __status')[0]['window_end']
+except sqlite3.OperationalError:
+  window_end = None
 log("window_start = {!r} window_end = {!r}".format(window_start, window_end))
 
 try:
@@ -228,6 +229,8 @@ try:
         os.system("crontab -r >/dev/null 2>&1")
         scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
         mode = 'clearing-backlog'
+        window_start = None
+        window_end = None
         set_status_and_exit('clean-slate', 'error', 'No query set')
         sys.exit()
 
@@ -254,8 +257,8 @@ try:
         statuses = scraperwiki.sql.select('* from __status')[0]
         diagnostics['mode'] = statuses['mode']
         diagnostics['status'] = statuses['current_status']
-        diagnostics['window_start'] = statuses['window_start']
-        diagnostics['window_end'] = statuses['window_end']
+        diagnostics['window_start'] = window_start
+        diagnostics['window_end'] = window_end
 
         crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
         diagnostics['crontab'] = crontab
@@ -298,11 +301,16 @@ try:
     # Go backwards from current window_end until we've got all we can
     got = 2
     while got > 1:
-        log("window_end = {!r}".format(window_end))
-        results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
+        log("q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
+        if window_end == None:
+          # for some reason can't just pass max_id in as None
+          results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
+        else:
+          results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
+        log("done results")
         got = process_results(results, query_terms)
         log("   got backwards {}".format(got))
-        window_end = min(x['id'] for x in results['statuses'])
+        window_end = str(min(x['id'] for x in results['statuses']))
         log("new window_end = {!r}".format(window_end))
 
         pages_got += 1
@@ -325,7 +333,7 @@ try:
         results = tw.search.tweets(q=query_terms, result_type = 'recent')
         got = process_results(results, query_terms)
         log("   got forwards {}".format(got))
-        window_end = min(x['id'] for x in results['statuses'])
+        window_end = str(min(x['id'] for x in results['statuses']))
         log("new window_end = {!r}".format(window_end))
 
 except twitter.api.TwitterHTTPError, e:
