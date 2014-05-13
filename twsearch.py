@@ -289,36 +289,38 @@ try:
         results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
         got = process_results(results, query_terms)
         log("   got forwards {}".format(got))
-        window_end = str(min(x['id'] for x in results['statuses']))
+        if got > 0:
+          window_end = str(min(x['id'] for x in results['statuses']))
         log("new window_end = {!r}".format(window_end))
 
-    # Go backwards from current window_end until we've got all we can
-    #
-    # Loop termination: Note that we search with max_id set to the id of some
-    # tweet that we have already saved, which means we'll get that tweet in our
-    # results, which means that we only have _new_ tweets if the number that we
-    # got is bigger than 1.
-    got = 2
-    while got > 1:
-        log("backwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
-        if window_end == None:
-          # for some reason can't just pass max_id in as None
-          results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
-        else:
-          results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
-        got = process_results(results, query_terms)
-        log("   got backwards {}".format(got))
-        window_end = str(min(x['id'] for x in results['statuses']))
-        log("new window_end = {!r}".format(window_end))
+    if window_end != None:
+      # Go backwards from current window_end until we've got all we can
+      #
+      # Loop termination: Note that we search with max_id set to the id of some
+      # tweet that we have already saved, which means we'll get that tweet in our
+      # results, which means that we only have _new_ tweets if the number that we
+      # got is bigger than 1.
+      got = 2
+      while got > 1:
+          log("backwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
+          if window_end == None:
+            # for some reason can't just pass max_id in as None
+            results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
+          else:
+            results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
+          got = process_results(results, query_terms)
+          log("   got backwards {}".format(got))
+          window_end = str(min(x['id'] for x in results['statuses']))
+          log("new window_end = {!r}".format(window_end))
 
-        pages_got += 1
-        if onetime:
-            break
+          pages_got += 1
+          if onetime:
+              break
 
-    # Update the window, it now starts from our latest place forward
-    window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
-    window_end = None
-    log("new window! since_id/window_start = {!r} max_id/window_end = {!r}".format(window_start, window_end))
+      # Update the window, it now starts from our latest place forward
+      window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+      window_end = None
+      log("new window! since_id/window_start = {!r} max_id/window_end = {!r}".format(window_start, window_end))
 
     # We've reached as far back as we'll ever get, so we're done forever in one mode
     if not onetime and mode == 'clearing-backlog':
