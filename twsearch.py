@@ -285,7 +285,7 @@ try:
     # Jump window end forwards once to the most recent Tweet (if we don't
     # already have an end we are working backwards from)
     if window_end == None:
-        log("jumping forwards")
+        log("forwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
         results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
         got = process_results(results, query_terms)
         log("   got forwards {}".format(got))
@@ -300,13 +300,12 @@ try:
     # got is bigger than 1.
     got = 2
     while got > 1:
-        log("q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
+        log("backwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
         if window_end == None:
           # for some reason can't just pass max_id in as None
           results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
         else:
           results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
-        log("done results")
         got = process_results(results, query_terms)
         log("   got backwards {}".format(got))
         window_end = str(min(x['id'] for x in results['statuses']))
