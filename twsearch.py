@@ -282,23 +282,22 @@ try:
         # (this may or may not be different to the existing crontab)
         os.system("crontab crontab")
 
-    # Get tweets older than current front of window.
-    #
-    # XXX update these docs
-    # Bootstrap: at the very beginning when there are no tweets (no rows in
-    # tweets table) this code still works and gets the first batch of tweets.
-    # This is because of some rather subtle behaviour of SQL and scraperwiki.sql:
-    # When the table is empty the query "min(id_str) from tweets" will return
-    # a row with None as the value associated with the key "min(id_str)", so
-    # min_id will be set to None, and tw.search.tweets Does The Right Thing when
-    # None is used as the max_id parameter.
+    # Jump window end forwards once to the most recent Tweet (if we don't
+    # already have an end we are working backwards from)
+    if window_end == None:
+        log("jumping forwards")
+        results = tw.search.tweets(q=query_terms, result_type = 'recent')
+        got = process_results(results, query_terms)
+        log("   got forwards {}".format(got))
+        window_end = str(min(x['id'] for x in results['statuses']))
+        log("new window_end = {!r}".format(window_end))
+
+    # Go backwards from current window_end until we've got all we can
     #
     # Loop termination: Note that we search with max_id set to the id of some
     # tweet that we have already saved, which means we'll get that tweet in our
     # results, which means that we only have _new_ tweets if the number that we
     # got is bigger than 1.
-
-    # Go backwards from current window_end until we've got all we can
     got = 2
     while got > 1:
         log("q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
@@ -327,14 +326,7 @@ try:
         os.system("crontab -r >/dev/null 2>&1")
         set_status_and_exit("ok-updating", 'ok', '')
 
-    # Jump window end forwards once to the most recent Tweet
-    if mode == 'monitoring':
-        log("jumping forwards")
-        results = tw.search.tweets(q=query_terms, result_type = 'recent')
-        got = process_results(results, query_terms)
-        log("   got forwards {}".format(got))
-        window_end = str(min(x['id'] for x in results['statuses']))
-        log("new window_end = {!r}".format(window_end))
+    # In monitoring mode, the next run we'll jump forward again as window_end is now None
 
 except twitter.api.TwitterHTTPError, e:
     if "Twitter sent status 401 for URL" in str(e):
