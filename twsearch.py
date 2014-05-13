@@ -286,7 +286,7 @@ try:
     # already have an end we are working backwards from)
     if window_end == None:
         log("jumping forwards")
-        results = tw.search.tweets(q=query_terms, result_type = 'recent')
+        results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
         got = process_results(results, query_terms)
         log("   got forwards {}".format(got))
         window_end = str(min(x['id'] for x in results['statuses']))
