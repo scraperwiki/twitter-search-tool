@@ -124,18 +124,18 @@ def clear_auth_and_restart():
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
-    global mode
+    global mode, window_start, window_end
 
     extra['status'] = status
     print json.dumps(extra)
 
     requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
-    data = { 'id': 'tweets', 'mode': mode, 'current_status': status }
+    data = { 'id': 'tweets', 'mode': mode, 'current_status': status, 'window_start': window_start, 'window_end': window_end }
     scraperwiki.sql.save(['id'], data, table_name='__status')
 
-    log("{} mode={!r}, status={!r}, type={!r}, message={!r}".format(
-      "set_status_and_exit", mode, status, typ, message))
+    log("{} mode={!r}, status={!r}, type={!r}, message={!r}, window={!r}-{!r}".format(
+      "set_status_and_exit", mode, status, typ, message, window_start, window_end))
     sys.exit()
 
 def process_results(results, query_terms):
@@ -209,6 +209,16 @@ else:
 log("mode = {!r}".format(mode))
 
 try:
+  window_start = scraperwiki.sql.select('window_start from __status')[0]['window_start']
+except sqlite3.OperationalError:
+  window_start = None
+try:
+  window_end = scraperwiki.sql.select('window_end from __status')[0]['window_end']
+except sqlite3.OperationalError:
+  window_end = None
+log("window_start = {!r} window_end = {!r}".format(window_start, window_end))
+
+try:
     # Parameters to this command vary:
     #   a. None: try and scrape Twitter followers
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
@@ -219,6 +229,8 @@ try:
         os.system("crontab -r >/dev/null 2>&1")
         scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
         mode = 'clearing-backlog'
+        window_start = None
+        window_end = None
         set_status_and_exit('clean-slate', 'error', 'No query set')
         sys.exit()
 
@@ -245,6 +257,8 @@ try:
         statuses = scraperwiki.sql.select('* from __status')[0]
         diagnostics['mode'] = statuses['mode']
         diagnostics['status'] = statuses['current_status']
+        diagnostics['window_start'] = window_start
+        diagnostics['window_end'] = window_end
 
         crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
         diagnostics['crontab'] = crontab
@@ -268,52 +282,55 @@ try:
         # (this may or may not be different to the existing crontab)
         os.system("crontab crontab")
 
-    # Get tweets older than what we've already got. There are two slightly
-    # subtle features of this code: bootstrapping, and "got > 1" (the loop
-    # termination condition).
-    #
-    # Bootstrap: at the very beginning when there are no tweets (no rows in
-    # tweets table) this code still works and gets the first batch of tweets.
-    # This is because of some rather subtle behaviour of SQL and scraperwiki.sql:
-    # When the table is empty the query "min(id_str) from tweets" will return
-    # a row with None as the value associated with the key "min(id_str)", so
-    # min_id will be set to None, and tw.search.tweets Does The Right Thing when
-    # None is used as the max_id parameter.
-    #
-    # Loop termination: Note that we search with max_id set to the id of some
-    # tweet that we have already saved, which means we'll get that tweet in our
-    # results, which means that we only have _new_ tweets if the number that we
-    # got is bigger than 1.
-
-    got = 2
-    while got > 1:
-        min_id = scraperwiki.sql.select("min(id_str) from tweets")[0]["min(id_str)"]
-        log("min_id {}".format(min_id))
-        results = tw.search.tweets(q=query_terms, max_id = min_id)
+    # Jump window end forwards once to the most recent Tweet (if we don't
+    # already have an end we are working backwards from)
+    if window_end == None:
+        log("forwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
+        results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
         got = process_results(results, query_terms)
-        log("got {}".format(got))
-        pages_got += 1
-        if onetime:
-            break
+        log("   got forwards {}".format(got))
+        if got > 0:
+          window_end = str(min(x['id'] for x in results['statuses']))
+        log("new window_end = {!r}".format(window_end))
 
-    # we've reached as far back as we'll ever get, so we're done forever
+    if window_end != None:
+      # Go backwards from current window_end until we've got all we can
+      #
+      # Loop termination: Note that we search with max_id set to the id of some
+      # tweet that we have already saved, which means we'll get that tweet in our
+      # results, which means that we only have _new_ tweets if the number that we
+      # got is bigger than 1.
+      got = 2
+      while got > 1:
+          log("backwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
+          if window_end == None:
+            # for some reason can't just pass max_id in as None
+            results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
+          else:
+            results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
+          got = process_results(results, query_terms)
+          log("   got backwards {}".format(got))
+          if got > 0:
+            window_end = str(min(x['id'] for x in results['statuses']))
+          log("new window_end = {!r}".format(window_end))
+
+          pages_got += 1
+          if onetime:
+              break
+
+      # Update the window, it now starts from our latest place forward
+      if not onetime:
+        window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+        window_end = None
+        log("new window! since_id/window_start = {!r} max_id/window_end = {!r}".format(window_start, window_end))
+
+    # We've reached as far back as we'll ever get, so we're done forever in one mode
     if not onetime and mode == 'clearing-backlog':
         mode = 'backlog-cleared'
         os.system("crontab -r >/dev/null 2>&1")
         set_status_and_exit("ok-updating", 'ok', '')
 
-    # Get tweets more recent than what we've already got
-    if mode == 'monitoring':
-        got = 2
-        while got > 1:
-            max_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
-            log("max_id {}".format(max_id))
-            results = tw.search.tweets(q=query_terms, since_id = max_id)
-            got = process_results(results, query_terms)
-            log("got {}".format(got))
-            pages_got += 1
-            if onetime:
-                break
+    # In monitoring mode, the next run we'll jump forward again as window_end is now None
 
 except twitter.api.TwitterHTTPError, e:
     if "Twitter sent status 401 for URL" in str(e):
