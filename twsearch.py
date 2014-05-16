@@ -195,8 +195,8 @@ def process_results(results, query_terms):
         datas.append(data)
 
     if datas:
-        min_id = min(x['id_str'] for x in datas)
-        max_id = max(x['id_str'] for x in datas)
+        min_id = min(int(x['id_str']) for x in datas)
+        max_id = max(int(x['id_str']) for x in datas)
         log("about to save; min_id {}, max_id {}".format(min_id, max_id))
     else:
         log("no datas")
@@ -343,7 +343,7 @@ def command_scrape():
 
         # Update the window, it now starts from most recent place forward (i.e. window_end is None)
         if not onetime:
-            window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+            window_start = scraperwiki.sql.select("max(created_at) from tweets")[0]["max(id_str)"]
             change_window(window_start, None)
 
         # We've reached as far back as we'll ever get, so we're done forever in one mode
