@@ -158,11 +158,9 @@ def process_results(results, query_terms):
         data['in_reply_to_screen_name'] = tweet['in_reply_to_screen_name']
         data['in_reply_to_status_id'] = tweet['in_reply_to_status_id']
 
-        try:
+        if 'geo' in tweet and 'coordinates' in tweet['geo']:
             data['lat'] = tweet['geo']['coordinates'][0]
             data['lng'] = tweet['geo']['coordinates'][1]
-        except:
-            pass
 
         entities = tweet.get('entities', {})
 
