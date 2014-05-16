@@ -310,7 +310,7 @@ def command_scrape():
         # Jump window end forwards once to the most recent Tweet (if we don't
         # already have an end we are working backwards from)
         if window_end == None:
-            log("forwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
+            log("forwards q = {!r} window_start = {!r} window_end = {!r}".format(query_terms, window_start, window_end))
             results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
             got = process_results(results, query_terms)
             log("   got forwards {}".format(got))
@@ -327,7 +327,7 @@ def command_scrape():
             # got is bigger than 1.
             got = 2
             while got > 1:
-                log("backwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
+                log("backwards q = {!r} window_start = {!r} window_end = {!r}".format(query_terms, window_start, window_end))
                 if window_end == None:
                   # for some reason can't just pass max_id in as None
                   results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
@@ -347,7 +347,7 @@ def command_scrape():
           if not onetime:
             window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
             window_end = None
-            log("new window! since_id/window_start = {!r} max_id/window_end = {!r}".format(window_start, window_end))
+            log("new window! window_start = {!r} window_end = {!r}".format(window_start, window_end))
 
         # We've reached as far back as we'll ever get, so we're done forever in one mode
         if not onetime and mode == 'clearing-backlog':
