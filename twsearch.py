@@ -148,7 +148,7 @@ def change_mode(new_mode):
 # The range of Tweets we're currently fetching, from end backwards
 def change_window(start, end):
     scraperwiki.sql.save(['id'], { 'id': 'tweets', 'window_start': start, 'window_end': end }, table_name='__window')
-    log("new window! window_start = {!r} window_end = {!r}".format(start, end))
+    log("new window! window = {!r} - {!r}".format(start, end))
 
 def process_results(results, query_terms):
     datas = []
@@ -283,7 +283,7 @@ def command_scrape():
         window_end = scraperwiki.sql.select('window_end from __status')[0]['window_end']
       except sqlite3.OperationalError:
         window_end = None
-    log("initial window_start = {!r} window_end = {!r}".format(window_start, window_end))
+    log("initial window = {!r} - {!r}".format(window_start, window_end))
 
     pages_got = 0
     onetime = 'ONETIME' in os.environ
@@ -320,7 +320,7 @@ def command_scrape():
         # got is bigger than 1.
         got = 2
         while got > 1:
-            log("q = {!r} window_start = {!r} window_end = {!r}".format(query_terms, window_start, window_end))
+            log("q = {!r} window = {!r} - {!r}".format(query_terms, window_start, window_end))
             if window_end == None:
               log("    jumping forwards")
               # for some reason can't just pass max_id in as None
