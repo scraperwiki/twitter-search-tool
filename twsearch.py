@@ -200,13 +200,19 @@ def process_results(results, query_terms):
     scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
     return len(results['statuses'])
 
+#########################################################################
+# Commands
+
+
+
 
 #########################################################################
 # Main code
 
-pages_got = 0
-onetime = 'ONETIME' in os.environ
-
+# Parameters to this command vary:
+#   a. None: try and scrape Twitter followers
+#   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
+#   c. "clean-slate": wipe database and start again
 command = 'scrape'
 if len(sys.argv) > 1:
     if sys.argv[1] in ('diagnostics', 'clean-slate', 'change-mode'):
@@ -218,6 +224,46 @@ if command == 'change-mode':
     mode = os.environ['MODE']
     change_mode(mode)
     just_exit()
+
+# Clean everything, as if the tool was new
+if command == 'clean-slate':
+    scraperwiki.sql.execute("drop table if exists tweets")
+    scraperwiki.sql.execute("drop table if exists __status")
+    os.system("crontab -r >/dev/null 2>&1")
+    scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
+    change_mode('clearing-backlog')
+    window_start = None
+    window_end = None
+    set_status_and_exit('clean-slate', 'error', 'No query set')
+    sys.exit()
+
+# Called for diagnostic information only
+if command == 'diagnostics':
+    # connect to Twitter - TODO, send something appropriate back if this fails
+    tw = do_tool_oauth()
+
+    diagnostics = {}
+    diagnostics['_rate_limit_status'] = tw.application.rate_limit_status()
+    diagnostics['limit'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['limit']
+    diagnostics['remaining'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['remaining']
+    diagnostics['reset'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['reset']
+    diagnostics['_account_settings'] = tw.account.settings()
+    diagnostics['user'] = diagnostics['_account_settings']['screen_name']
+
+    statuses = scraperwiki.sql.select('* from __status')[0]
+    diagnostics['status'] = statuses['current_status']
+    diagnostics['window_start'] = window_start
+    diagnostics['window_end'] = window_end
+
+    modes = scraperwiki.sql.select('* from __mode')[0]
+    diagnostics['mode'] = modes['mode']
+
+    crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
+    diagnostics['crontab'] = crontab
+
+    print json.dumps(diagnostics)
+    sys.exit()
+
 
 # Read mode from database
 try:
@@ -244,22 +290,10 @@ except sqlite3.OperationalError:
   window_end = None
 log("window_start = {!r} window_end = {!r}".format(window_start, window_end))
 
-try:
-    # Parameters to this command vary:
-    #   a. None: try and scrape Twitter followers
-    #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
-    #   c. "clean-slate": wipe database and start again
-    if command == 'clean-slate':
-        scraperwiki.sql.execute("drop table if exists tweets")
-        scraperwiki.sql.execute("drop table if exists __status")
-        os.system("crontab -r >/dev/null 2>&1")
-        scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
-        change_mode('clearing-backlog')
-        window_start = None
-        window_end = None
-        set_status_and_exit('clean-slate', 'error', 'No query set')
-        sys.exit()
+pages_got = 0
+onetime = 'ONETIME' in os.environ
 
+try:
     # Make the tweets table *first* with dumb data, calling DumpTruck directly,
     # so it appears before the status one in the list
     scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
@@ -269,30 +303,6 @@ try:
 
     # Connect to Twitter
     tw = do_tool_oauth()
-
-    # Called for diagnostic information only
-    if command == 'diagnostics':
-        diagnostics = {}
-        diagnostics['_rate_limit_status'] = tw.application.rate_limit_status()
-        diagnostics['limit'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['limit']
-        diagnostics['remaining'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['remaining']
-        diagnostics['reset'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['reset']
-        diagnostics['_account_settings'] = tw.account.settings()
-        diagnostics['user'] = diagnostics['_account_settings']['screen_name']
-
-        statuses = scraperwiki.sql.select('* from __status')[0]
-        diagnostics['status'] = statuses['current_status']
-        diagnostics['window_start'] = window_start
-        diagnostics['window_end'] = window_end
-
-        modes = scraperwiki.sql.select('* from __mode')[0]
-        diagnostics['mode'] = modes['mode']
-
-        crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
-        diagnostics['crontab'] = crontab
-
-        print json.dumps(diagnostics)
-        sys.exit()
 
     # Mode changes
     if mode == 'backlog-cleared':
