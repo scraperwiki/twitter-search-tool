@@ -19,6 +19,26 @@ import codecs
 
 from secrets import *
 
+# Horrendous hack to work around some Twitter / Python incompatibility
+# http://bobrochel.blogspot.co.nz/2010/11/bad-servers-chunked-encoding-and.html
+def patch_http_response_read(func):
+    def inner(*args):
+        try:
+            return func(*args)
+        except httplib.IncompleteRead, e:
+            return e.partial
+    return inner
+httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
+
+# Make sure you install this version of "twitter":
+# http://pypi.python.org/pypi/twitter
+# http://mike.verdone.ca/twitter/
+# https://github.com/sixohsix/twitter
+import twitter
+
+#########################################################################
+# Logging
+
 logf = open(os.path.expanduser("~/all.log"), 'a', buffering=1)
 
 def log(message):
@@ -32,7 +52,6 @@ def log(message):
 
     logf.write("{} {} {}\n".format(timestamp, pid, message))
 
-
 def on_exit():
     log("exiting (via atexit)")
 
@@ -42,24 +61,6 @@ log("started with arguments: {!r}".format(sys.argv))
 log("started with environ: ONETIME={!r}, MODE={!r}".format(
   os.environ.get("ONETIME"),
   os.environ.get("MODE")))
-
-# Horrendous hack to work around some Twitter / Python incompatibility
-# http://bobrochel.blogspot.co.nz/2010/11/bad-servers-chunked-encoding-and.html
-def patch_http_response_read(func):
-    def inner(*args):
-        try:
-            return func(*args)
-        except httplib.IncompleteRead, e:
-            return e.partial
-
-    return inner
-httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
-
-# Make sure you install this version of "twitter":
-# http://pypi.python.org/pypi/twitter
-# http://mike.verdone.ca/twitter/
-# https://github.com/sixohsix/twitter
-import twitter
 
 #########################################################################
 # Authentication to Twitter
