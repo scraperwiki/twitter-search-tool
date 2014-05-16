@@ -207,6 +207,11 @@ def process_results(results, query_terms):
 pages_got = 0
 onetime = 'ONETIME' in os.environ
 
+command = 'scrape'
+if len(sys.argv) > 1:
+    if sys.argv[1] in ('diagnostics', 'clean-slate'):
+        command = sys.argv[1]
+
 # Just change the mode, then stop
 if 'MODE' in os.environ:
     mode = os.environ['MODE']
@@ -243,7 +248,7 @@ try:
     #   a. None: try and scrape Twitter followers
     #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
     #   c. "clean-slate": wipe database and start again
-    if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
+    if command == 'clean-slate':
         scraperwiki.sql.execute("drop table if exists tweets")
         scraperwiki.sql.execute("drop table if exists __status")
         os.system("crontab -r >/dev/null 2>&1")
@@ -265,7 +270,7 @@ try:
     tw = do_tool_oauth()
 
     # Called for diagnostic information only
-    if len(sys.argv) > 1 and sys.argv[1] == 'diagnostics':
+    if command == 'diagnostics':
         diagnostics = {}
         diagnostics['_rate_limit_status'] = tw.application.rate_limit_status()
         diagnostics['limit'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['limit']
