@@ -131,15 +131,12 @@ def just_exit(extra = {}):
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
-    global window_start, window_end
-
     requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
-    data = { 'id': 'tweets', 'current_status': status, 'window_start': window_start, 'window_end': window_end }
+    data = { 'id': 'tweets', 'current_status': status }
     scraperwiki.sql.save(['id'], data, table_name='__status')
 
-    log("{} status={!r}, type={!r}, message={!r}, window={!r}-{!r}".format(
-      "set_status_and_exit", status, typ, message, window_start, window_end))
+    log("set_status_and_exit status={!r}, type={!r}, message={!r}".format(status, typ, message))
 
     just_exit()
 
@@ -148,11 +145,10 @@ def change_mode(new_mode):
     log("{} new_mode={!r}".format(mode))
     scraperwiki.sql.save(['id'], { 'id': 'tweets', 'mode': new_mode }, table_name='__mode')
 
+# The range of Tweets we're currently fetching, from end backwards
 def change_window(start, end):
-    global window_start, window_end
-    window_start = start
-    window_end = end
-    log("new window! window_start = {!r} window_end = {!r}".format(window_start, window_end))
+    scraperwiki.sql.save(['id'], { 'id': 'tweets', 'window_start': start, 'window_end': end }, table_name='__window')
+    log("new window! window_start = {!r} window_end = {!r}".format(start, end))
 
 def process_results(results, query_terms):
     datas = []
@@ -243,11 +239,13 @@ def command_diagnostics():
 
     statuses = scraperwiki.sql.select('* from __status')[0]
     diagnostics['status'] = statuses['current_status']
-    diagnostics['window_start'] = statuses['window_start']
-    diagnostics['window_end'] = statuses['window_end']
 
     modes = scraperwiki.sql.select('* from __mode')[0]
     diagnostics['mode'] = modes['mode']
+
+    windows = scraperwiki.sql.select('* from __window')[0]
+    diagnostics['window_start'] = windows['window_start']
+    diagnostics['window_end'] = windows['window_end']
 
     crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
     diagnostics['crontab'] = crontab
@@ -256,8 +254,6 @@ def command_diagnostics():
     sys.exit()
 
 def command_scrape():
-    global window_start, window_end
-
     # Read mode from database
     try:
         mode = scraperwiki.sql.select('mode from __mode')[0]['mode']
@@ -270,17 +266,23 @@ def command_scrape():
         except sqlite3.OperationalError:
             # happens when '__mode' table doesn't exist
             mode = 'clearing-backlog'
-    log("mode = {!r}".format(mode))
+    log("initial mode = {!r}".format(mode))
     assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring'] # should never happen
 
     try:
-      window_start = scraperwiki.sql.select('window_start from __status')[0]['window_start']
+      window_start = scraperwiki.sql.select('window_start from __window')[0]['window_start']
     except sqlite3.OperationalError:
-      window_start = None
+      try:
+        window_start = scraperwiki.sql.select('window_start from __status')[0]['window_start']
+      except sqlite3.OperationalError:
+        window_start = None
     try:
-      window_end = scraperwiki.sql.select('window_end from __status')[0]['window_end']
+      window_end = scraperwiki.sql.select('window_end from __window')[0]['window_end']
     except sqlite3.OperationalError:
-      window_end = None
+      try:
+        window_end = scraperwiki.sql.select('window_end from __status')[0]['window_end']
+      except sqlite3.OperationalError:
+        window_end = None
     log("initial window_start = {!r} window_end = {!r}".format(window_start, window_end))
 
     pages_got = 0
@@ -331,8 +333,8 @@ def command_scrape():
             log("    got {}".format(got))
 
             if got > 0:
-              min_got_id = str(min(x['id'] for x in results['statuses']))
-              change_window(window_start, min_got_id)
+              window_end = str(min(x['id'] for x in results['statuses']))
+              change_window(window_start, window_end)
 
             pages_got += 1
             if onetime:
@@ -340,8 +342,8 @@ def command_scrape():
 
         # Update the window, it now starts from most recent place forward (i.e. window_end is None)
         if not onetime:
-            max_tweet_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
-            change_window(max_tweet_id, None)
+            window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+            change_window(window_start, None)
 
         # We've reached as far back as we'll ever get, so we're done forever in one mode
         if not onetime and mode == 'clearing-backlog':
