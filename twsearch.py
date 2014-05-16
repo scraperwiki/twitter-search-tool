@@ -269,6 +269,7 @@ def command_scrape():
     log("initial mode = {!r}".format(mode))
     assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring'] # should never happen
 
+    # Read window from database
     try:
       window_start = scraperwiki.sql.select('window_start from __window')[0]['window_start']
     except sqlite3.OperationalError:
@@ -285,9 +286,9 @@ def command_scrape():
         window_end = None
     log("initial window = {!r} - {!r}".format(window_start, window_end))
 
-    pages_got = 0
     onetime = 'ONETIME' in os.environ
 
+    pages_got = 0
     try:
         # Make the tweets table *first* with dumb data, calling DumpTruck directly,
         # so it appears before the status one in the list
