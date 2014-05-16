@@ -254,6 +254,17 @@ def command_diagnostics():
     sys.exit()
 
 def command_scrape():
+    # Make sure this scrape mode only runs once at once
+    f = open("query.txt")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        log("already running scrape according to flock, exiting")
+        sys.exit()
+
+    # Get query we're working on from file we store it in
+    query_terms = codecs.open("query.txt", "r", "utf-8").read().strip()
+
     # Read mode from database
     try:
         mode = scraperwiki.sql.select('mode from __mode')[0]['mode']
@@ -293,9 +304,6 @@ def command_scrape():
         # Make the tweets table *first* with dumb data, calling DumpTruck directly,
         # so it appears before the status one in the list
         scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
-
-        # Get query we're working on from file we store it in
-        query_terms = codecs.open("query.txt", "r", "utf-8").read().strip()
 
         # Connect to Twitter
         tw = do_tool_oauth()
