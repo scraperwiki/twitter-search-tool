@@ -74,7 +74,7 @@ var toggle_monitoring_mode = function() {
     var $checkbox = $(this)
     $checkbox.hide().next().show()
 
-    scraperwiki.exec('MODE=' + new_mode + ' ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
+    scraperwiki.exec('MODE=' + new_mode + ' tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
         function(data) {
             $checkbox.show().next().hide()
             done_exec_main(data)
