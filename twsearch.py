@@ -209,11 +209,12 @@ onetime = 'ONETIME' in os.environ
 
 command = 'scrape'
 if len(sys.argv) > 1:
-    if sys.argv[1] in ('diagnostics', 'clean-slate'):
+    if sys.argv[1] in ('diagnostics', 'clean-slate', 'change-mode'):
         command = sys.argv[1]
 
 # Just change the mode, then stop
-if 'MODE' in os.environ:
+if command == 'change-mode':
+    assert 'MODE' in os.environ
     mode = os.environ['MODE']
     change_mode(mode)
     just_exit()
