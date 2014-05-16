@@ -124,19 +124,24 @@ def clear_auth_and_restart():
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
-    global mode, window_start, window_end
+    global window_start, window_end
 
     extra['status'] = status
     print json.dumps(extra)
 
     requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
-    data = { 'id': 'tweets', 'mode': mode, 'current_status': status, 'window_start': window_start, 'window_end': window_end }
+    data = { 'id': 'tweets', 'current_status': status, 'window_start': window_start, 'window_end': window_end }
     scraperwiki.sql.save(['id'], data, table_name='__status')
 
-    log("{} mode={!r}, status={!r}, type={!r}, message={!r}, window={!r}-{!r}".format(
-      "set_status_and_exit", mode, status, typ, message, window_start, window_end))
+    log("{} status={!r}, type={!r}, message={!r}, window={!r}-{!r}".format(
+      "set_status_and_exit", status, typ, message, window_start, window_end))
     sys.exit()
+
+# Either we or the user is changing the mode explicitly
+def change_mode(new_mode):
+    log("{} new_mode={!r}".format(mode))
+    scraperwiki.sql.save(['id'], { 'id': 'tweets', 'mode': new_mode }, table_name='__mode')
 
 def process_results(results, query_terms):
     datas = []
@@ -200,13 +205,21 @@ onetime = 'ONETIME' in os.environ
 
 if 'MODE' in os.environ:
     mode = os.environ['MODE']
+    change_mode(mode)
 else:
     try:
-        mode = scraperwiki.sql.select('mode from __status')[0]['mode']
+        mode = scraperwiki.sql.select('mode from __mode')[0]['mode']
     except sqlite3.OperationalError:
-        # happens when '__status' table doesn't exist
-        mode = 'clearing-backlog'
+        # legacy place mode is stored
+        try:
+            mode = scraperwiki.sql.select('mode from __status')[0]['mode']
+            # save in new place
+            change_mode(mode)
+        except sqlite3.OperationalError:
+            # happens when '__mode' table doesn't exist
+            mode = 'clearing-backlog'
 log("mode = {!r}".format(mode))
+assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring'] # should never happen
 
 try:
   window_start = scraperwiki.sql.select('window_start from __status')[0]['window_start']
@@ -228,7 +241,7 @@ try:
         scraperwiki.sql.execute("drop table if exists __status")
         os.system("crontab -r >/dev/null 2>&1")
         scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
-        mode = 'clearing-backlog'
+        change_mode('clearing-backlog')
         window_start = None
         window_end = None
         set_status_and_exit('clean-slate', 'error', 'No query set')
@@ -255,10 +268,12 @@ try:
         diagnostics['user'] = diagnostics['_account_settings']['screen_name']
 
         statuses = scraperwiki.sql.select('* from __status')[0]
-        diagnostics['mode'] = statuses['mode']
         diagnostics['status'] = statuses['current_status']
         diagnostics['window_start'] = window_start
         diagnostics['window_end'] = window_end
+
+        modes = scraperwiki.sql.select('* from __mode')[0]
+        diagnostics['mode'] = modes['mode']
 
         crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
         diagnostics['crontab'] = crontab
@@ -267,20 +282,19 @@ try:
         sys.exit()
 
     # Mode changes
-    assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring'] # should never happen
     if mode == 'backlog-cleared':
         # we shouldn't run, because we've cleared the backlog already
         set_status_and_exit("ok-updating", 'ok', '')
-    else:
-        if 'MODE' in os.environ or not os.path.isfile("crontab"):
-            # frontend has defined a new mode, so we should make a new crontab
-            crontab = open("tool/crontab.template").read()
-            # run at a random minute to distribute load (platform should really do this for us!)
-            crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
-            open("crontab", "w").write(crontab)
-        # implement whatever crontab has been written to the crontab text file
-        # (this may or may not be different to the existing crontab)
-        os.system("crontab crontab")
+
+    # crontab to schedule for next time
+    # we make a new crontab file, with random minute do distribute load for platform
+    if not os.path.isfile("crontab"):
+        crontab = open("tool/crontab.template").read()
+        crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
+        open("crontab", "w").write(crontab)
+    # implement whatever crontab has been written to the crontab text file
+    # (this may or may not be different to the existing crontab)
+    os.system("crontab crontab")
 
     # Jump window end forwards once to the most recent Tweet (if we don't
     # already have an end we are working backwards from)
@@ -326,7 +340,7 @@ try:
 
     # We've reached as far back as we'll ever get, so we're done forever in one mode
     if not onetime and mode == 'clearing-backlog':
-        mode = 'backlog-cleared'
+        change_mode('backlog-cleared')
         os.system("crontab -r >/dev/null 2>&1")
         set_status_and_exit("ok-updating", 'ok', '')
 
