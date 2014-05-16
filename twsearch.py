@@ -148,6 +148,12 @@ def change_mode(new_mode):
     log("{} new_mode={!r}".format(mode))
     scraperwiki.sql.save(['id'], { 'id': 'tweets', 'mode': new_mode }, table_name='__mode')
 
+def change_window(start, end):
+    global window_start, window_end
+    window_start = start
+    window_end = end
+    log("new window! window_start = {!r} window_end = {!r}".format(window_start, window_end))
+
 def process_results(results, query_terms):
     datas = []
     for tweet in results['statuses']:
@@ -218,9 +224,7 @@ def command_clean_state():
     os.system("crontab -r >/dev/null 2>&1")
     scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
     change_mode('clearing-backlog')
-    global window_start, window_end
-    window_start = None
-    window_end = None
+    change_window(None, None)
     set_status_and_exit('clean-slate', 'error', 'No query set')
     sys.exit()
 
@@ -277,7 +281,7 @@ def command_scrape():
       window_end = scraperwiki.sql.select('window_end from __status')[0]['window_end']
     except sqlite3.OperationalError:
       window_end = None
-    log("window_start = {!r} window_end = {!r}".format(window_start, window_end))
+    log("initial window_start = {!r} window_end = {!r}".format(window_start, window_end))
 
     pages_got = 0
     onetime = 'ONETIME' in os.environ
@@ -322,11 +326,13 @@ def command_scrape():
             else:
               log("    filling in backwards")
               results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
+
             got = process_results(results, query_terms)
             log("    got {}".format(got))
+
             if got > 0:
-              window_end = str(min(x['id'] for x in results['statuses']))
-            log("    new window_end = {!r}".format(window_end))
+              min_got_id = str(min(x['id'] for x in results['statuses']))
+              change_window(window_start, min_got_id)
 
             pages_got += 1
             if onetime:
@@ -334,9 +340,8 @@ def command_scrape():
 
         # Update the window, it now starts from most recent place forward (i.e. window_end is None)
         if not onetime:
-            window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
-            window_end = None
-            log("new window! window_start = {!r} window_end = {!r}".format(window_start, window_end))
+            max_tweet_id = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+            change_window(max_tweet_id, None)
 
         # We've reached as far back as we'll ever get, so we're done forever in one mode
         if not onetime and mode == 'clearing-backlog':
