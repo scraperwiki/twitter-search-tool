@@ -122,12 +122,15 @@ def clear_auth_and_restart():
 #########################################################################
 # Helper functions
 
+# Just print the return code, don't update status database table
+def just_exit(extra = {}):
+    extra['status'] = status
+    print json.dumps(extra)
+    sys.exit()
+
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
     global window_start, window_end
-
-    extra['status'] = status
-    print json.dumps(extra)
 
     requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
 
@@ -136,7 +139,8 @@ def set_status_and_exit(status, typ, message, extra = {}):
 
     log("{} status={!r}, type={!r}, message={!r}, window={!r}-{!r}".format(
       "set_status_and_exit", status, typ, message, window_start, window_end))
-    sys.exit()
+
+    just_exit()
 
 # Either we or the user is changing the mode explicitly
 def change_mode(new_mode):
@@ -203,21 +207,24 @@ def process_results(results, query_terms):
 pages_got = 0
 onetime = 'ONETIME' in os.environ
 
+# Just change the mode, then stop
 if 'MODE' in os.environ:
     mode = os.environ['MODE']
     change_mode(mode)
-else:
+    just_exit()
+
+# Read mode from database
+try:
+    mode = scraperwiki.sql.select('mode from __mode')[0]['mode']
+except sqlite3.OperationalError:
+    # legacy place mode is stored
     try:
-        mode = scraperwiki.sql.select('mode from __mode')[0]['mode']
+        mode = scraperwiki.sql.select('mode from __status')[0]['mode']
+        # save in new place
+        change_mode(mode)
     except sqlite3.OperationalError:
-        # legacy place mode is stored
-        try:
-            mode = scraperwiki.sql.select('mode from __status')[0]['mode']
-            # save in new place
-            change_mode(mode)
-        except sqlite3.OperationalError:
-            # happens when '__mode' table doesn't exist
-            mode = 'clearing-backlog'
+        # happens when '__mode' table doesn't exist
+        mode = 'clearing-backlog'
 log("mode = {!r}".format(mode))
 assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring'] # should never happen
 
