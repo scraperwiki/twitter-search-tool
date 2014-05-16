@@ -308,44 +308,32 @@ def command_scrape():
         # (this may or may not be different to the existing crontab)
         os.system("crontab crontab")
 
-        # Jump window end forwards once to the most recent Tweet (if we don't
-        # already have an end we are working backwards from)
-        if window_end == None:
-            log("forwards q = {!r} window_start = {!r} window_end = {!r}".format(query_terms, window_start, window_end))
-            results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
+        # Loop termination: Note that we search with max_id set to the id of some
+        # tweet that we have already saved, which means we'll get that tweet in our
+        # results, which means that we only have _new_ tweets if the number that we
+        # got is bigger than 1.
+        got = 2
+        while got > 1:
+            log("q = {!r} window_start = {!r} window_end = {!r}".format(query_terms, window_start, window_end))
+            if window_end == None:
+              log("    jumping forwards")
+              # for some reason can't just pass max_id in as None
+              results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
+            else:
+              log("    filling in backwards")
+              results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
             got = process_results(results, query_terms)
-            log("   got forwards {}".format(got))
+            log("    got {}".format(got))
             if got > 0:
               window_end = str(min(x['id'] for x in results['statuses']))
-            log("new window_end = {!r}".format(window_end))
+            log("    new window_end = {!r}".format(window_end))
 
-        if window_end != None:
-            # Go backwards from current window_end until we've got all we can
-            #
-            # Loop termination: Note that we search with max_id set to the id of some
-            # tweet that we have already saved, which means we'll get that tweet in our
-            # results, which means that we only have _new_ tweets if the number that we
-            # got is bigger than 1.
-            got = 2
-            while got > 1:
-                log("backwards q = {!r} window_start = {!r} window_end = {!r}".format(query_terms, window_start, window_end))
-                if window_end == None:
-                  # for some reason can't just pass max_id in as None
-                  results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
-                else:
-                  results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
-                got = process_results(results, query_terms)
-                log("   got backwards {}".format(got))
-                if got > 0:
-                  window_end = str(min(x['id'] for x in results['statuses']))
-                log("new window_end = {!r}".format(window_end))
+            pages_got += 1
+            if onetime:
+                break
 
-                pages_got += 1
-                if onetime:
-                    break
-
-          # Update the window, it now starts from our latest place forward
-          if not onetime:
+        # Update the window, it now starts from most recent place forward (i.e. window_end is None)
+        if not onetime:
             window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
             window_end = None
             log("new window! window_start = {!r} window_end = {!r}".format(window_start, window_end))
