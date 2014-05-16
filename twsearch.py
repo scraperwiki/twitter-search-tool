@@ -238,8 +238,8 @@ def command_diagnostics():
 
     statuses = scraperwiki.sql.select('* from __status')[0]
     diagnostics['status'] = statuses['current_status']
-    diagnostics['window_start'] = window_start
-    diagnostics['window_end'] = window_end
+    diagnostics['window_start'] = statuses['window_start']
+    diagnostics['window_end'] = statuses['window_end']
 
     modes = scraperwiki.sql.select('* from __mode')[0]
     diagnostics['mode'] = modes['mode']
