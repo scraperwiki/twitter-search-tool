@@ -210,7 +210,7 @@ var show_hide_stuff = function(done, rename) {
                 } else {
                     $('#settings-auth').show()
                     $('#settings-clear').show()
-        }
+                }
                 // Rename the dataset in the user interface
                 scraperwiki.dataset.name("Tweets matching '" + data + "'")
             } else if (results['current_status'] == 'ok-updating') {
