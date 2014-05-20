@@ -141,6 +141,8 @@ def set_status_and_exit(status, typ, message, extra = {}):
 def change_mode(new_mode):
     log("change_mode new_mode={!r}".format(new_mode))
     scraperwiki.sql.save(['id'], { 'id': 'tweets', 'mode': new_mode }, table_name='__mode')
+    # mode changed, so do stuff again
+    crontab_install()
 
 # Read mode from database
 def get_mode():
@@ -216,6 +218,16 @@ def process_results(results, query_terms):
     scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
     return len(results['statuses'])
 
+# we make a new crontab file, with random minute do distribute load for platform
+def crontab_install():
+    if not os.path.isfile("crontab"):
+        crontab = open("tool/crontab.template").read()
+        crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
+        open("crontab", "w").write(crontab)
+    # implement whatever crontab has been written to the crontab text file
+    # (this may or may not be different to the existing crontab)
+    os.system("crontab crontab")
+
 #########################################################################
 # Commands
 
@@ -231,9 +243,9 @@ def command_change_mode():
 def command_clean_state():
     scraperwiki.sql.execute("drop table if exists tweets")
     scraperwiki.sql.execute("drop table if exists __status")
-    os.system("crontab -r >/dev/null 2>&1")
     scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
     change_mode('clearing-backlog')
+    os.system("crontab -r >/dev/null 2>&1")
     change_window(None, None)
     set_status_and_exit('clean-slate', 'error', 'No query set')
     sys.exit()
@@ -309,14 +321,7 @@ def command_scrape(mode):
         tw = do_tool_oauth()
 
         # crontab to schedule for next time
-        # we make a new crontab file, with random minute do distribute load for platform
-        if not os.path.isfile("crontab"):
-            crontab = open("tool/crontab.template").read()
-            crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
-            open("crontab", "w").write(crontab)
-        # implement whatever crontab has been written to the crontab text file
-        # (this may or may not be different to the existing crontab)
-        os.system("crontab crontab")
+        crontab_install()
 
         # Loop termination: Note that we search with max_id set to the id of some
         # tweet that we have already saved, which means we'll get that tweet in our
@@ -349,8 +354,10 @@ def command_scrape(mode):
             window_start = scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"]
             change_window(window_start, None)
 
-        # We've reached as far back as we'll ever get, so we're done forever stop the crontab
+        # Get the mode again, in case the user has meanwhile changed it by clicking "Monitor future tweets"
+        mode = get_mode():
         if not onetime and mode == 'clearing-backlog':
+            # We've reached as far back as we'll ever get, so we're done forever stop the crontab
             os.system("crontab -r >/dev/null 2>&1")
             set_status_and_exit("ok-updating", 'ok', '')
 
