@@ -125,11 +125,11 @@ def clear_auth_and_restart():
 # Helper functions
 
 # Converts a list of strings into a space separated string
-def make_space_separated_or_none(l, field):
+def make_space_separated_or_none(l, field, prefix=""):
     if not l:
         return None
 
-    plucked = [ i.get(field, '') for i in l ]
+    plucked = [ prefix + i.get(field, '') for i in l ]
     return " ".join(plucked)
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
@@ -209,9 +209,9 @@ def process_results(results, query_terms):
         media = entities.get('media')
         data['media'] = make_space_separated_or_none(media, u'media_url_https')
         users = entities.get('user_mentions')
-        data['user_mentions' ] = make_space_separated_or_none(users, u'screen_name')
+        data['user_mentions' ] = make_space_separated_or_none(users, u'screen_name', u'@')
         hashtags = entities.get('hashtags')
-        data['hashtags'] = make_space_separated_or_none(hashtags, u'text')
+        data['hashtags'] = make_space_separated_or_none(hashtags, u'text', u'#')
 
         data['query'] = query_terms
 
