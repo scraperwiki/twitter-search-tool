@@ -16,6 +16,7 @@ import scraperwiki
 import httplib
 import random
 import codecs
+import fcntl
 
 from secrets import *
 
