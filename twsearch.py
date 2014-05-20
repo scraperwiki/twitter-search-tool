@@ -258,8 +258,8 @@ def command_diagnostics():
     diagnostics['mode'] = modes['mode']
 
     windows = scraperwiki.sql.select('* from __window')[0]
-    diagnostics['window_start'] = windows['window_start']
-    diagnostics['window_end'] = windows['window_end']
+    diagnostics['window_start'] = windows.get('window_start', None)
+    diagnostics['window_end'] = windows.get('window_end', None)
 
     crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
     diagnostics['crontab'] = crontab
@@ -346,7 +346,7 @@ def command_scrape(mode):
 
         # Update the window, it now starts from most recent place forward (i.e. window_end is None)
         if not onetime:
-            window_start = scraperwiki.sql.select("max(created_at) from tweets")[0]["max(id_str)"]
+            window_start = scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"]
             change_window(window_start, None)
 
         # We've reached as far back as we'll ever get, so we're done forever stop the crontab
