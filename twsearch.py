@@ -355,7 +355,7 @@ def command_scrape(mode):
             change_window(window_start, None)
 
         # Get the mode again, in case the user has meanwhile changed it by clicking "Monitor future tweets"
-        mode = get_mode():
+        mode = get_mode()
         if not onetime and mode == 'clearing-backlog':
             # We've reached as far back as we'll ever get, so we're done forever stop the crontab
             os.system("crontab -r >/dev/null 2>&1")
