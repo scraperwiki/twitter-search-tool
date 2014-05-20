@@ -276,7 +276,7 @@ def command_scrape():
             # happens when '__mode' table doesn't exist
             mode = 'clearing-backlog'
     log("initial mode = {!r}".format(mode))
-    assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring'] # should never happen
+    assert mode in ['clearing-backlog', 'monitoring'] # should never happen
 
     # Read window from database
     try:
@@ -305,11 +305,6 @@ def command_scrape():
 
         # Connect to Twitter
         tw = do_tool_oauth()
-
-        # Mode changes
-        if mode == 'backlog-cleared':
-            # we shouldn't run, because we've cleared the backlog already
-            set_status_and_exit("ok-updating", 'ok', '')
 
         # crontab to schedule for next time
         # we make a new crontab file, with random minute do distribute load for platform
@@ -352,9 +347,8 @@ def command_scrape():
             window_start = scraperwiki.sql.select("max(created_at) from tweets")[0]["max(id_str)"]
             change_window(window_start, None)
 
-        # We've reached as far back as we'll ever get, so we're done forever in one mode
+        # We've reached as far back as we'll ever get, so we're done forever stop the crontab
         if not onetime and mode == 'clearing-backlog':
-            change_mode('backlog-cleared')
             os.system("crontab -r >/dev/null 2>&1")
             set_status_and_exit("ok-updating", 'ok', '')
 

@@ -148,9 +148,9 @@ var clear_action = function() {
     scraperwiki.dataset.name("Search for Tweets")
     scraperwiki.reporting.user({increments: {ts_resets: 1}})
     scraperwiki.exec("tool/twsearch.py clean-slate",
-    function(content) {
-        done_exec_main(content, false)
-    },
+        function(content) {
+            done_exec_main(content, false)
+        },
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }
@@ -214,16 +214,24 @@ var show_hide_stuff = function(done, rename) {
                 // Rename the dataset in the user interface
                 scraperwiki.dataset.name("Tweets matching '" + data + "'")
             } else if (results['current_status'] == 'ok-updating') {
-                $('#settings-' + results['mode']).show()
-                $('#settings-monitor-choice').show()
-                $('#monitor-future-tweets').attr('checked', results['mode'] == 'monitoring')
-        scraperwiki.sql('select min(created_at) as min, max(created_at) as max from tweets', function(range){
-                    $(".date-range").html("<br>from " + moment(range[0]['min']).format("Do MMM YYYY") + " to " + moment(range[0]['max']).format("Do MMM YYYY"))
-        })
-                $('#settings-clear').show()
-                if(window.trackSearch) {
-                    scraperwiki.reporting.user({increments: {ts_searches: 1}})
-                }
+                scraperwiki.exec("crontab -l", function(text) {
+                    if (mode == 'clearing-backlog' && text.match(/no crontab/)) {
+                        results['mode'] = 'backlog-cleared'
+                    }
+                    $("#schedule-button").removeClass("loading")
+                    $('#settings-' + results['mode']).show()
+                    $('#settings-monitor-choice').show()
+                    $('#monitor-future-tweets').attr('checked', results['mode'] == 'monitoring')
+                    scraperwiki.sql('select min(created_at) as min, max(created_at) as max from tweets', function(range){
+                                $(".date-range").html("<br>from " + moment(range[0]['min']).format("Do MMM YYYY") + " to " + moment(range[0]['max']).format("Do MMM YYYY"))
+                    })
+                    $('#settings-clear').show()
+                    if(window.trackSearch) {
+                        scraperwiki.reporting.user({increments: {ts_searches: 1}})
+                    }
+                }, function(obj, err, exception) {
+                    something_went_wrong(err + "! " + exception)
+                })
             } else {
                 alert("Unknown internal state: " + results['current_status'])
             }
