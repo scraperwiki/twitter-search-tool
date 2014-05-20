@@ -77,7 +77,6 @@ var toggle_monitoring_mode = function() {
     scraperwiki.exec('MODE=' + new_mode + ' tool/twsearch.py change-mode',
         function(data) {
             $checkbox.show().next().hide()
-            done_exec_main(data)
         },
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)

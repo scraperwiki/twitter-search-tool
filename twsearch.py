@@ -124,12 +124,6 @@ def clear_auth_and_restart():
 #########################################################################
 # Helper functions
 
-# Just print the return code, don't update status database table
-def just_exit(extra = {}):
-    extra['status'] = status
-    print json.dumps(extra)
-    sys.exit()
-
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
     requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
@@ -139,7 +133,9 @@ def set_status_and_exit(status, typ, message, extra = {}):
 
     log("set_status_and_exit status={!r}, type={!r}, message={!r}".format(status, typ, message))
 
-    just_exit()
+    extra['status'] = status
+    print json.dumps(extra)
+    sys.exit()
 
 # Either we or the user is changing the mode explicitly
 def change_mode(new_mode):
@@ -210,7 +206,8 @@ def command_change_mode():
     assert 'MODE' in os.environ
     mode = os.environ['MODE']
     change_mode(mode)
-    just_exit()
+    print json.dumps({'mode-changed': 'ok'})
+    sys.exit()
 
 # Clean everything, as if the tool was new
 def command_clean_state():
