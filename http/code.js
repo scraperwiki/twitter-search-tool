@@ -176,7 +176,7 @@ var show_hide_stuff = function(done, rename) {
         }
 
         // Show right form
-        scraperwiki.sql('select *, (select mode from __mode where id ="tweets") from __status where id = "tweets"', function(results){
+        scraperwiki.sql('select *, (select mode from __mode where id ="tweets") as mode from __status where id = "tweets"', function(results){
             results = results[0]
             console.log(results)
 
@@ -214,7 +214,7 @@ var show_hide_stuff = function(done, rename) {
                 scraperwiki.dataset.name("Tweets matching '" + data + "'")
             } else if (results['current_status'] == 'ok-updating') {
                 scraperwiki.exec("crontab -l", function(text) {
-                    if (mode == 'clearing-backlog' && text.match(/no crontab/)) {
+                    if (results['mode'] == 'clearing-backlog' && text.match(/no crontab/)) {
                         results['mode'] = 'backlog-cleared'
                     }
                     $("#schedule-button").removeClass("loading")
