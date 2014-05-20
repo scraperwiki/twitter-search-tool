@@ -294,17 +294,17 @@ def command_scrape(mode):
 
     # Read window from database
     try:
-      window_start = scraperwiki.sql.select('window_start from __window')[0]['window_start']
+      window_start = str(scraperwiki.sql.select('window_start from __window')[0]['window_start'])
     except sqlite3.OperationalError:
       try:
-        window_start = scraperwiki.sql.select('window_start from __status')[0]['window_start']
+        window_start = str(scraperwiki.sql.select('window_start from __status')[0]['window_start'])
       except sqlite3.OperationalError:
         window_start = None
     try:
-      window_end = scraperwiki.sql.select('window_end from __window')[0]['window_end']
+      window_end = str(scraperwiki.sql.select('window_end from __window')[0]['window_end'])
     except sqlite3.OperationalError:
       try:
-        window_end = scraperwiki.sql.select('window_end from __status')[0]['window_end']
+        window_end = str(scraperwiki.sql.select('window_end from __status')[0]['window_end'])
       except sqlite3.OperationalError:
         window_end = None
     log("initial window = {!r} - {!r}".format(window_start, window_end))
@@ -351,7 +351,9 @@ def command_scrape(mode):
 
         # Update the window, it now starts from most recent place forward (i.e. window_end is None)
         if not onetime:
-            window_start = scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"]
+            # The double cast here is so SQLite correctly sorts id_str as if it were and integer not a string,
+            # yet we still return a string
+            window_start = str(scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"])
             change_window(window_start, None)
 
         # Get the mode again, in case the user has meanwhile changed it by clicking "Monitor future tweets"
