@@ -176,7 +176,7 @@ var show_hide_stuff = function(done, rename) {
         }
 
         // Show right form
-        scraperwiki.sql('select *, (select * from __modes where id ="tweets") from __status where id = "tweets"', function(results){
+        scraperwiki.sql('select *, (select mode from __mode where id ="tweets") from __status where id = "tweets"', function(results){
             results = results[0]
             console.log(results)
 

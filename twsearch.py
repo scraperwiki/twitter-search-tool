@@ -139,8 +139,26 @@ def set_status_and_exit(status, typ, message, extra = {}):
 
 # Either we or the user is changing the mode explicitly
 def change_mode(new_mode):
-    log("{} new_mode={!r}".format(mode))
+    log("change_mode new_mode={!r}".format(new_mode))
     scraperwiki.sql.save(['id'], { 'id': 'tweets', 'mode': new_mode }, table_name='__mode')
+
+# Read mode from database
+def get_mode():
+    try:
+        mode = scraperwiki.sql.select('mode from __mode')[0]['mode']
+    except sqlite3.OperationalError:
+        # legacy place mode is stored
+        try:
+            mode = scraperwiki.sql.select('mode from __status')[0]['mode']
+            # save in new place
+            change_mode(mode)
+        except sqlite3.OperationalError:
+            # happens when '__mode' table doesn't exist, so make it
+            mode = 'clearing-backlog'
+            change_mode(mode)
+    log("initial mode = {!r}".format(mode))
+    assert mode in ['clearing-backlog', 'monitoring'] # should never happen
+    return mode
 
 # The range of Tweets we're currently fetching, from end backwards
 def change_window(start, end):
@@ -249,7 +267,7 @@ def command_diagnostics():
     print json.dumps(diagnostics)
     sys.exit()
 
-def command_scrape():
+def command_scrape(mode):
     # Make sure this scrape mode only runs once at once
     f = open("query.txt")
     try:
@@ -261,20 +279,6 @@ def command_scrape():
     # Get query we're working on from file we store it in
     query_terms = codecs.open("query.txt", "r", "utf-8").read().strip()
 
-    # Read mode from database
-    try:
-        mode = scraperwiki.sql.select('mode from __mode')[0]['mode']
-    except sqlite3.OperationalError:
-        # legacy place mode is stored
-        try:
-            mode = scraperwiki.sql.select('mode from __status')[0]['mode']
-            # save in new place
-            change_mode(mode)
-        except sqlite3.OperationalError:
-            # happens when '__mode' table doesn't exist
-            mode = 'clearing-backlog'
-    log("initial mode = {!r}".format(mode))
-    assert mode in ['clearing-backlog', 'monitoring'] # should never happen
 
     # Read window from database
     try:
@@ -398,6 +402,8 @@ if len(sys.argv) > 1:
     if sys.argv[1] in ('change-mode', 'clean-slate', 'diagnostics'):
         command = sys.argv[1]
 
+mode = get_mode()
+
 if command == 'change-mode':
     command_change_mode()
 elif command == 'clean-slate':
@@ -405,7 +411,7 @@ elif command == 'clean-slate':
 elif command == 'diagnostics':
     command_diagnostics()
 elif command == 'scrape':
-    command_scrape()
+    command_scrape(mode)
 else:
     assert False
 
