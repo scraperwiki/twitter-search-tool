@@ -124,6 +124,14 @@ def clear_auth_and_restart():
 #########################################################################
 # Helper functions
 
+# Converts a list of strings into a space separated string
+def make_space_separated_or_none(l, field):
+    if not l:
+        return None
+
+    plucked = [ i.get(field, '') for i in l ]
+    return " ".join(plucked)
+
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
     requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
@@ -197,16 +205,13 @@ def process_results(results, query_terms):
         entities = tweet.get('entities', {})
 
         urls = entities.get('urls')
-        data['url'] = urls[0].get(u'expanded_url') if urls else None
-
+        data['urls'] = make_space_separated_or_none(urls, u'expanded_url')
         media = entities.get('media')
-        data['media'] = media[0].get(u'media_url_https', '') if media else None
-
+        data['media'] = make_space_separated_or_none(media, u'media_url_https')
         users = entities.get('user_mentions')
-        data['user_mention' ] = users[0].get(u'screen_name','') if users else None
-
+        data['user_mentions' ] = make_space_separated_or_none(users, u'screen_name')
         hashtags = entities.get('hashtags')
-        data['hashtags'] = hashtags[0].get(u'text','') if hashtags else None
+        data['hashtags'] = make_space_separated_or_none(hashtags, u'text')
 
         data['query'] = query_terms
 
