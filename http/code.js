@@ -193,7 +193,7 @@ var show_hide_stuff = function(done, rename) {
             if (results['current_status'] == 'clean-slate') {
                 $('#settings-get').show()
             } else if (results['current_status'] == 'invalid-query') {
-        console.log(results)
+                console.log(results)
                 var p = $('<p>').addClass('alert alert-warning').html("<b>That query didn't work!</b> It isn't a valid Twitter search.")
                 $('body').prepend(p)
                 $('#settings-get').show()
