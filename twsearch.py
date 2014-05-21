@@ -279,6 +279,12 @@ def command_diagnostics():
     print json.dumps(diagnostics)
     sys.exit()
 
+# Make something a string, without casting None to string
+def make_sure_string(var):
+    if var == None:
+        return var
+    return str(var)
+
 def command_scrape(mode):
     # Make sure this scrape mode only runs once at once
     f = open("query.txt")
@@ -294,17 +300,17 @@ def command_scrape(mode):
 
     # Read window from database
     try:
-      window_start = str(scraperwiki.sql.select('window_start from __window')[0]['window_start'])
+      window_start = make_sure_string(scraperwiki.sql.select('window_start from __window')[0]['window_start'])
     except sqlite3.OperationalError:
       try:
-        window_start = str(scraperwiki.sql.select('window_start from __status')[0]['window_start'])
+        window_start = make_sure_string(scraperwiki.sql.select('window_start from __status')[0]['window_start'])
       except sqlite3.OperationalError:
         window_start = None
     try:
-      window_end = str(scraperwiki.sql.select('window_end from __window')[0]['window_end'])
+      window_end = make_sure_string(scraperwiki.sql.select('window_end from __window')[0]['window_end'])
     except sqlite3.OperationalError:
       try:
-        window_end = str(scraperwiki.sql.select('window_end from __status')[0]['window_end'])
+        window_end = make_sure_string(scraperwiki.sql.select('window_end from __status')[0]['window_end'])
       except sqlite3.OperationalError:
         window_end = None
     log("initial window = {!r} - {!r}".format(window_start, window_end))
@@ -342,7 +348,7 @@ def command_scrape(mode):
             log("    got {}".format(got))
 
             if got > 0:
-              window_end = str(min(x['id'] for x in results['statuses']))
+              window_end = make_sure_string(min(x['id'] for x in results['statuses']))
               change_window(window_start, window_end)
 
             pages_got += 1
@@ -353,7 +359,7 @@ def command_scrape(mode):
         if not onetime:
             # The double cast here is so SQLite correctly sorts id_str as if it were and integer not a string,
             # yet we still return a string
-            window_start = str(scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"])
+            window_start = make_sure_string(scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"])
             change_window(window_start, None)
 
         # Get the mode again, in case the user has meanwhile changed it by clicking "Monitor future tweets"
