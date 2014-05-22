@@ -74,10 +74,10 @@ var toggle_monitoring_mode = function() {
     var $checkbox = $(this)
     $checkbox.hide().next().show()
 
-    scraperwiki.exec('MODE=' + new_mode + ' ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
-        function(data) {
+    scraperwiki.exec('MODE=' + new_mode + ' tool/twsearch.py change-mode',
+        function(content) {
             $checkbox.show().next().hide()
-            done_exec_main(data)
+            done_exec_main(content, false)
         },
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
@@ -148,9 +148,9 @@ var clear_action = function() {
     scraperwiki.dataset.name("Search for Tweets")
     scraperwiki.reporting.user({increments: {ts_resets: 1}})
     scraperwiki.exec("tool/twsearch.py clean-slate",
-    function(content) {
-        done_exec_main(content, false)
-    },
+        function(content) {
+            done_exec_main(content, false)
+        },
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }
@@ -177,7 +177,7 @@ var show_hide_stuff = function(done, rename) {
         }
 
         // Show right form
-        scraperwiki.sql('select * from __status where id = "tweets"', function(results){
+        scraperwiki.sql('select *, (select mode from __mode where id ="tweets") as mode from __status where id = "tweets"', function(results){
             results = results[0]
             console.log(results)
 
@@ -193,7 +193,7 @@ var show_hide_stuff = function(done, rename) {
             if (results['current_status'] == 'clean-slate') {
                 $('#settings-get').show()
             } else if (results['current_status'] == 'invalid-query') {
-        console.log(results)
+                console.log(results)
                 var p = $('<p>').addClass('alert alert-warning').html("<b>That query didn't work!</b> It isn't a valid Twitter search.")
                 $('body').prepend(p)
                 $('#settings-get').show()
@@ -210,20 +210,28 @@ var show_hide_stuff = function(done, rename) {
                 } else {
                     $('#settings-auth').show()
                     $('#settings-clear').show()
-        }
+                }
                 // Rename the dataset in the user interface
                 scraperwiki.dataset.name("Tweets matching '" + data + "'")
             } else if (results['current_status'] == 'ok-updating') {
-                $('#settings-' + results['mode']).show()
-                $('#settings-monitor-choice').show()
-                $('#monitor-future-tweets').attr('checked', results['mode'] == 'monitoring')
-        scraperwiki.sql('select min(created_at) as min, max(created_at) as max from tweets', function(range){
-                    $(".date-range").html("<br>from " + moment(range[0]['min']).format("Do MMM YYYY") + " to " + moment(range[0]['max']).format("Do MMM YYYY"))
-        })
-                $('#settings-clear').show()
-                if(window.trackSearch) {
-                    scraperwiki.reporting.user({increments: {ts_searches: 1}})
-                }
+                scraperwiki.exec("crontab -l", function(text) {
+                    if (results['mode'] == 'clearing-backlog' && text.match(/no crontab/)) {
+                        results['mode'] = 'backlog-cleared'
+                    }
+                    $("#schedule-button").removeClass("loading")
+                    $('#settings-' + results['mode']).show()
+                    $('#settings-monitor-choice').show()
+                    $('#monitor-future-tweets').attr('checked', results['mode'] == 'monitoring')
+                    scraperwiki.sql('select min(created_at) as min, max(created_at) as max from tweets', function(range){
+                                $(".date-range").html("<br>from " + moment(range[0]['min']).format("Do MMM YYYY") + " to " + moment(range[0]['max']).format("Do MMM YYYY"))
+                    })
+                    $('#settings-clear').show()
+                    if(window.trackSearch) {
+                        scraperwiki.reporting.user({increments: {ts_searches: 1}})
+                    }
+                }, function(obj, err, exception) {
+                    something_went_wrong(err + "! " + exception)
+                })
             } else {
                 alert("Unknown internal state: " + results['current_status'])
             }

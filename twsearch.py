@@ -16,8 +16,29 @@ import scraperwiki
 import httplib
 import random
 import codecs
+import fcntl
 
 from secrets import *
+
+# Horrendous hack to work around some Twitter / Python incompatibility
+# http://bobrochel.blogspot.co.nz/2010/11/bad-servers-chunked-encoding-and.html
+def patch_http_response_read(func):
+    def inner(*args):
+        try:
+            return func(*args)
+        except httplib.IncompleteRead, e:
+            return e.partial
+    return inner
+httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
+
+# Make sure you install this version of "twitter":
+# http://pypi.python.org/pypi/twitter
+# http://mike.verdone.ca/twitter/
+# https://github.com/sixohsix/twitter
+import twitter
+
+#########################################################################
+# Logging
 
 logf = open(os.path.expanduser("~/all.log"), 'a', buffering=1)
 
@@ -32,7 +53,6 @@ def log(message):
 
     logf.write("{} {} {}\n".format(timestamp, pid, message))
 
-
 def on_exit():
     log("exiting (via atexit)")
 
@@ -42,24 +62,6 @@ log("started with arguments: {!r}".format(sys.argv))
 log("started with environ: ONETIME={!r}, MODE={!r}".format(
   os.environ.get("ONETIME"),
   os.environ.get("MODE")))
-
-# Horrendous hack to work around some Twitter / Python incompatibility
-# http://bobrochel.blogspot.co.nz/2010/11/bad-servers-chunked-encoding-and.html
-def patch_http_response_read(func):
-    def inner(*args):
-        try:
-            return func(*args)
-        except httplib.IncompleteRead, e:
-            return e.partial
-
-    return inner
-httplib.HTTPResponse.read = patch_http_response_read(httplib.HTTPResponse.read)
-
-# Make sure you install this version of "twitter":
-# http://pypi.python.org/pypi/twitter
-# http://mike.verdone.ca/twitter/
-# https://github.com/sixohsix/twitter
-import twitter
 
 #########################################################################
 # Authentication to Twitter
@@ -124,19 +126,46 @@ def clear_auth_and_restart():
 
 # Signal back to the calling Javascript, to the database, and custard's status API, our status
 def set_status_and_exit(status, typ, message, extra = {}):
-    global mode, window_start, window_end
+    requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
+
+    data = { 'id': 'tweets', 'current_status': status }
+    scraperwiki.sql.save(['id'], data, table_name='__status')
+
+    log("set_status_and_exit status={!r}, type={!r}, message={!r}".format(status, typ, message))
 
     extra['status'] = status
     print json.dumps(extra)
-
-    requests.post("https://scraperwiki.com/api/status", data={'type':typ, 'message':message})
-
-    data = { 'id': 'tweets', 'mode': mode, 'current_status': status, 'window_start': window_start, 'window_end': window_end }
-    scraperwiki.sql.save(['id'], data, table_name='__status')
-
-    log("{} mode={!r}, status={!r}, type={!r}, message={!r}, window={!r}-{!r}".format(
-      "set_status_and_exit", mode, status, typ, message, window_start, window_end))
     sys.exit()
+
+# Either we or the user is changing the mode explicitly
+def change_mode(new_mode):
+    log("change_mode new_mode={!r}".format(new_mode))
+    scraperwiki.sql.save(['id'], { 'id': 'tweets', 'mode': new_mode }, table_name='__mode')
+    # mode changed, so do stuff again
+    crontab_install()
+
+# Read mode from database
+def get_mode():
+    try:
+        mode = scraperwiki.sql.select('mode from __mode')[0]['mode']
+    except sqlite3.OperationalError:
+        # legacy place mode is stored
+        try:
+            mode = scraperwiki.sql.select('mode from __status')[0]['mode']
+            # save in new place
+            change_mode(mode)
+        except sqlite3.OperationalError:
+            # happens when '__mode' table doesn't exist, so make it
+            mode = 'clearing-backlog'
+            change_mode(mode)
+    log("initial mode = {!r}".format(mode))
+    assert mode in ['clearing-backlog', 'monitoring'] # should never happen
+    return mode
+
+# The range of Tweets we're currently fetching, from end backwards
+def change_window(start, end):
+    scraperwiki.sql.save(['id'], { 'id': 'tweets', 'window_start': start, 'window_end': end }, table_name='__window')
+    log("new window! window = {!r} - {!r}".format(start, end))
 
 def process_results(results, query_terms):
     datas = []
@@ -158,7 +187,7 @@ def process_results(results, query_terms):
         data['in_reply_to_screen_name'] = tweet['in_reply_to_screen_name']
         data['in_reply_to_status_id'] = tweet['in_reply_to_status_id']
 
-        if 'geo' in tweet and 'coordinates' in tweet['geo']:
+        if 'geo' in tweet and tweet['geo'] != None and 'coordinates' in tweet['geo']:
             data['lat'] = tweet['geo']['coordinates'][0]
             data['lng'] = tweet['geo']['coordinates'][1]
 
@@ -181,184 +210,227 @@ def process_results(results, query_terms):
         datas.append(data)
 
     if datas:
-        min_id = min(x['id_str'] for x in datas)
-        max_id = max(x['id_str'] for x in datas)
+        min_id = min(int(x['id_str']) for x in datas)
+        max_id = max(int(x['id_str']) for x in datas)
         log("about to save; min_id {}, max_id {}".format(min_id, max_id))
     else:
         log("no datas")
     scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
     return len(results['statuses'])
 
+# we make a new crontab file, with random minute do distribute load for platform
+def crontab_install():
+    if not os.path.isfile("crontab"):
+        crontab = open("tool/crontab.template").read()
+        crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
+        open("crontab", "w").write(crontab)
+    # implement whatever crontab has been written to the crontab text file
+    # (this may or may not be different to the existing crontab)
+    os.system("crontab crontab")
 
 #########################################################################
-# Main code
+# Commands
 
-pages_got = 0
-onetime = 'ONETIME' in os.environ
-
-if 'MODE' in os.environ:
+# Just change the mode, then stop
+def command_change_mode():
+    assert 'MODE' in os.environ
     mode = os.environ['MODE']
-else:
-    try:
-        mode = scraperwiki.sql.select('mode from __status')[0]['mode']
-    except sqlite3.OperationalError:
-        # happens when '__status' table doesn't exist
-        mode = 'clearing-backlog'
-log("mode = {!r}".format(mode))
+    change_mode(mode)
+    print json.dumps({'mode-changed': 'ok'})
+    sys.exit()
 
-try:
-  window_start = scraperwiki.sql.select('window_start from __status')[0]['window_start']
-except sqlite3.OperationalError:
-  window_start = None
-try:
-  window_end = scraperwiki.sql.select('window_end from __status')[0]['window_end']
-except sqlite3.OperationalError:
-  window_end = None
-log("window_start = {!r} window_end = {!r}".format(window_start, window_end))
-
-try:
-    # Parameters to this command vary:
-    #   a. None: try and scrape Twitter followers
-    #   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
-    #   c. "clean-slate": wipe database and start again
-    if len(sys.argv) > 1 and sys.argv[1] == 'clean-slate':
-        scraperwiki.sql.execute("drop table if exists tweets")
-        scraperwiki.sql.execute("drop table if exists __status")
-        os.system("crontab -r >/dev/null 2>&1")
-        scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
-        mode = 'clearing-backlog'
-        window_start = None
-        window_end = None
-        set_status_and_exit('clean-slate', 'error', 'No query set')
-        sys.exit()
-
-    # Make the tweets table *first* with dumb data, calling DumpTruck directly,
-    # so it appears before the status one in the list
+# Clean everything, as if the tool was new
+def command_clean_state():
+    scraperwiki.sql.execute("drop table if exists tweets")
+    scraperwiki.sql.execute("drop table if exists __status")
     scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
+    change_mode('clearing-backlog')
+    os.system("crontab -r >/dev/null 2>&1")
+    change_window(None, None)
+    set_status_and_exit('clean-slate', 'error', 'No query set')
+    sys.exit()
+
+# Diagnostic information only, e.g. rate limiting status
+def command_diagnostics():
+    # connect to Twitter - TODO, send something appropriate back if this fails
+    tw = do_tool_oauth()
+
+    diagnostics = {}
+    diagnostics['_rate_limit_status'] = tw.application.rate_limit_status()
+    diagnostics['limit'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['limit']
+    diagnostics['remaining'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['remaining']
+    diagnostics['reset'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['reset']
+    diagnostics['_account_settings'] = tw.account.settings()
+    diagnostics['user'] = diagnostics['_account_settings']['screen_name']
+
+    statuses = scraperwiki.sql.select('* from __status')[0]
+    diagnostics['status'] = statuses['current_status']
+
+    modes = scraperwiki.sql.select('* from __mode')[0]
+    diagnostics['mode'] = modes['mode']
+
+    windows = scraperwiki.sql.select('* from __window')[0]
+    diagnostics['window_start'] = windows.get('window_start', None)
+    diagnostics['window_end'] = windows.get('window_end', None)
+
+    crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
+    diagnostics['crontab'] = crontab
+
+    print json.dumps(diagnostics)
+    sys.exit()
+
+# Make something a string, without casting None to string
+def make_sure_string(var):
+    if var == None:
+        return var
+    return str(var)
+
+def command_scrape(mode):
+    # Make sure this scrape mode only runs once at once
+    f = open("query.txt")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        log("already running scrape according to flock, exiting")
+        sys.exit()
 
     # Get query we're working on from file we store it in
     query_terms = codecs.open("query.txt", "r", "utf-8").read().strip()
 
-    # Connect to Twitter
-    tw = do_tool_oauth()
 
-    # Called for diagnostic information only
-    if len(sys.argv) > 1 and sys.argv[1] == 'diagnostics':
-        diagnostics = {}
-        diagnostics['_rate_limit_status'] = tw.application.rate_limit_status()
-        diagnostics['limit'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['limit']
-        diagnostics['remaining'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['remaining']
-        diagnostics['reset'] = diagnostics['_rate_limit_status']['resources']['search']['/search/tweets']['reset']
-        diagnostics['_account_settings'] = tw.account.settings()
-        diagnostics['user'] = diagnostics['_account_settings']['screen_name']
-
-        statuses = scraperwiki.sql.select('* from __status')[0]
-        diagnostics['mode'] = statuses['mode']
-        diagnostics['status'] = statuses['current_status']
-        diagnostics['window_start'] = window_start
-        diagnostics['window_end'] = window_end
-
-        crontab = subprocess.check_output("crontab -l | grep twsearch.py; true", stderr=subprocess.STDOUT, shell=True)
-        diagnostics['crontab'] = crontab
-
-        print json.dumps(diagnostics)
-        sys.exit()
-
-    # Mode changes
-    assert mode in ['clearing-backlog', 'backlog-cleared', 'monitoring'] # should never happen
-    if mode == 'backlog-cleared':
-        # we shouldn't run, because we've cleared the backlog already
-        set_status_and_exit("ok-updating", 'ok', '')
-    else:
-        if 'MODE' in os.environ or not os.path.isfile("crontab"):
-            # frontend has defined a new mode, so we should make a new crontab
-            crontab = open("tool/crontab.template").read()
-            # run at a random minute to distribute load (platform should really do this for us!)
-            crontab = crontab.replace("RANDOM", str(random.randint(0, 59)))
-            open("crontab", "w").write(crontab)
-        # implement whatever crontab has been written to the crontab text file
-        # (this may or may not be different to the existing crontab)
-        os.system("crontab crontab")
-
-    # Jump window end forwards once to the most recent Tweet (if we don't
-    # already have an end we are working backwards from)
-    if window_end == None:
-        log("forwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
-        results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
-        got = process_results(results, query_terms)
-        log("   got forwards {}".format(got))
-        if got > 0:
-          window_end = str(min(x['id'] for x in results['statuses']))
-        log("new window_end = {!r}".format(window_end))
-
-    if window_end != None:
-      # Go backwards from current window_end until we've got all we can
-      #
-      # Loop termination: Note that we search with max_id set to the id of some
-      # tweet that we have already saved, which means we'll get that tweet in our
-      # results, which means that we only have _new_ tweets if the number that we
-      # got is bigger than 1.
-      got = 2
-      while got > 1:
-          log("backwards q = {!r} since_id/window_start = {!r} max_id/window_end = {!r}".format(query_terms, window_start, window_end))
-          if window_end == None:
-            # for some reason can't just pass max_id in as None
-            results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
-          else:
-            results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
-          got = process_results(results, query_terms)
-          log("   got backwards {}".format(got))
-          if got > 0:
-            window_end = str(min(x['id'] for x in results['statuses']))
-          log("new window_end = {!r}".format(window_end))
-
-          pages_got += 1
-          if onetime:
-              break
-
-      # Update the window, it now starts from our latest place forward
-      if not onetime:
-        window_start = scraperwiki.sql.select("max(id_str) from tweets")[0]["max(id_str)"]
+    # Read window from database
+    try:
+      window_start = make_sure_string(scraperwiki.sql.select('window_start from __window')[0]['window_start'])
+    except sqlite3.OperationalError:
+      try:
+        window_start = make_sure_string(scraperwiki.sql.select('window_start from __status')[0]['window_start'])
+      except sqlite3.OperationalError:
+        window_start = None
+    try:
+      window_end = make_sure_string(scraperwiki.sql.select('window_end from __window')[0]['window_end'])
+    except sqlite3.OperationalError:
+      try:
+        window_end = make_sure_string(scraperwiki.sql.select('window_end from __status')[0]['window_end'])
+      except sqlite3.OperationalError:
         window_end = None
-        log("new window! since_id/window_start = {!r} max_id/window_end = {!r}".format(window_start, window_end))
+    log("initial window = {!r} - {!r}".format(window_start, window_end))
 
-    # We've reached as far back as we'll ever get, so we're done forever in one mode
-    if not onetime and mode == 'clearing-backlog':
-        mode = 'backlog-cleared'
-        os.system("crontab -r >/dev/null 2>&1")
-        set_status_and_exit("ok-updating", 'ok', '')
+    onetime = 'ONETIME' in os.environ
 
-    # In monitoring mode, the next run we'll jump forward again as window_end is now None
+    pages_got = 0
+    try:
+        # Make the tweets table *first* with dumb data, calling DumpTruck directly,
+        # so it appears before the status one in the list
+        scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
 
-except twitter.api.TwitterHTTPError, e:
-    if "Twitter sent status 401 for URL" in str(e):
-        clear_auth_and_restart()
+        # Connect to Twitter
+        tw = do_tool_oauth()
 
-    # https://dev.twitter.com/docs/error-codes-responses
-    obj = json.loads(e.response_data)
-    code = obj['errors'][0]['code']
-    # authentication failure
-    if (code in [32, 89]):
-        clear_auth_and_restart()
-    # rate limit exceeded
-    if code == 34:
-        set_status_and_exit('not-there', 'error', 'User not on Twitter')
-    if code == 195:
-        set_status_and_exit('invalid-query', 'error', "That isn't a valid Twitter search")
-    if code == 44:
-        set_status_and_exit('near-not-supported', 'error', "Twitter's API doesn't support NEAR")
-    if code == 88:
-        # provided we got at least one page, rate limit isn't an error but expected
+        # crontab to schedule for next time
+        crontab_install()
+
+        # Loop termination: Note that we search with max_id set to the id of some
+        # tweet that we have already saved, which means we'll get that tweet in our
+        # results, which means that we only have _new_ tweets if the number that we
+        # got is bigger than 1.
+        got = 2
+        while got > 1:
+            log("q = {!r} window = {!r} - {!r}".format(query_terms, window_start, window_end))
+            if window_end == None:
+              log("    jumping forwards")
+              # for some reason can't just pass max_id in as None
+              results = tw.search.tweets(q=query_terms, result_type = 'recent', since_id = window_start)
+            else:
+              log("    filling in backwards")
+              results = tw.search.tweets(q=query_terms, result_type = 'recent', max_id = window_end, since_id = window_start)
+
+            got = process_results(results, query_terms)
+            log("    got {}".format(got))
+
+            if got > 0:
+              window_end = make_sure_string(min(x['id'] for x in results['statuses']))
+              change_window(window_start, window_end)
+
+            pages_got += 1
+            if onetime:
+                break
+
+        # Update the window, it now starts from most recent place forward (i.e. window_end is None)
+        if not onetime:
+            # The double cast here is so SQLite correctly sorts id_str as if it were and integer not a string,
+            # yet we still return a string
+            window_start = make_sure_string(scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"])
+            change_window(window_start, None)
+
+        # Get the mode again, in case the user has meanwhile changed it by clicking "Monitor future tweets"
+        mode = get_mode()
+        if not onetime and mode == 'clearing-backlog':
+            # We've reached as far back as we'll ever get, so we're done forever stop the crontab
+            os.system("crontab -r >/dev/null 2>&1")
+            set_status_and_exit("ok-updating", 'ok', '')
+
+        # In monitoring mode, the next run we'll jump forward again as window_end is now None
+
+    except twitter.api.TwitterHTTPError, e:
+        if "Twitter sent status 401 for URL" in str(e):
+            clear_auth_and_restart()
+
+        # https://dev.twitter.com/docs/error-codes-responses
+        obj = json.loads(e.response_data)
+        code = obj['errors'][0]['code']
+        # authentication failure
+        if (code in [32, 89]):
+            clear_auth_and_restart()
+        # rate limit exceeded
+        if code == 34:
+            set_status_and_exit('not-there', 'error', 'User not on Twitter')
+        if code == 195:
+            set_status_and_exit('invalid-query', 'error', "That isn't a valid Twitter search")
+        if code == 44:
+            set_status_and_exit('near-not-supported', 'error', "Twitter's API doesn't support NEAR")
+        if code == 88:
+            # provided we got at least one page, rate limit isn't an error but expected
+            if pages_got == 0:
+                set_status_and_exit('rate-limit', 'error', 'Twitter has asked us to slow down')
+        else:
+            # anything else is an unexpected error - if ones occur a lot, add the above instead
+            raise
+    except httplib.IncompleteRead, e:
+        # I think this is effectively a rate limit error - so only count if it was first error
         if pages_got == 0:
-            set_status_and_exit('rate-limit', 'error', 'Twitter has asked us to slow down')
-    else:
-        # anything else is an unexpected error - if ones occur a lot, add the above instead
-        raise
-except httplib.IncompleteRead, e:
-    # I think this is effectively a rate limit error - so only count if it was first error
-    if pages_got == 0:
-        set_status_and_exit('rate-limit', 'error', 'Twitter broke the connection')
+            set_status_and_exit('rate-limit', 'error', 'Twitter broke the connection')
 
-# Save progress message
-set_status_and_exit("ok-updating", 'ok', '')
+    # Save progress message
+    set_status_and_exit("ok-updating", 'ok', '')
+
+
+#########################################################################
+# Main code
+
+# Parameters to this command vary:
+#   a. None: try and scrape Twitter followers
+#   b. callback_url oauth_verifier: have just come back from Twitter with these oauth tokens
+#   c. "clean-slate": wipe database and start again
+
+command = 'scrape'
+if len(sys.argv) > 1:
+    if sys.argv[1] in ('change-mode', 'clean-slate', 'diagnostics'):
+        command = sys.argv[1]
+
+mode = get_mode()
+
+if command == 'change-mode':
+    command_change_mode()
+elif command == 'clean-slate':
+    command_clean_state()
+elif command == 'diagnostics':
+    command_diagnostics()
+elif command == 'scrape':
+    command_scrape(mode)
+else:
+    assert False
+
+
+
+
 
