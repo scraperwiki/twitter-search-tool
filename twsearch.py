@@ -158,6 +158,9 @@ def get_mode():
             # happens when '__mode' table doesn't exist, so make it
             mode = 'clearing-backlog'
             change_mode(mode)
+    # convert legacy mode
+    if mode == 'backlog-cleared':
+        mode = 'clearing-backlog'
     log("initial mode = {!r}".format(mode))
     assert mode in ['clearing-backlog', 'monitoring'] # should never happen
     return mode
