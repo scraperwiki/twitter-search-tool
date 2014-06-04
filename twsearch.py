@@ -196,7 +196,7 @@ def process_results(results, query_terms):
 
         data['screen_name'] = tweet['user']['screen_name']
         data['in_reply_to_screen_name'] = tweet['in_reply_to_screen_name']
-        data['in_reply_to_status_id'] = tweet['in_reply_to_status_id']
+        data['in_reply_to_status_id'] = tweet['in_reply_to_status_id_str']
 
         if 'geo' in tweet and tweet['geo'] != None and 'coordinates' in tweet['geo']:
             data['lat'] = tweet['geo']['coordinates'][0]
