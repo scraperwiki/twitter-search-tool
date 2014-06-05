@@ -124,6 +124,24 @@ def clear_auth_and_restart():
 #########################################################################
 # Helper functions
 
+COLUMNS = collections.OrderedDict([["id_str", unicode()],
+				   ["tweet_url", unicode()],
+				   ["created_at", datetime.datetime.now()],
+				   ["text", unicode()], 
+				   ["lang", unicode()],
+				   ["retweet_count", int(0)],
+				   ["favorite_count", int(0)],
+				   ["screen_name", unicode()],
+				   ["in_reply_to_screen_name", unicode()],
+				   ["in_reply_to_status_id",  unicode()],
+				   ["lat", float(0)],
+				   ["lng", float(0)],
+				   ["urls", unicode()],
+				   ["media", unicode()],
+				   ["user_mentions", unicode()],
+				   ["hashtags", unicode()],
+				   ["query", unicode()]])
+
 # Converts a list of strings into a space separated string
 def make_space_separated_or_none(l, field, prefix=""):
     if not l:
@@ -182,7 +200,7 @@ def process_results(results, query_terms):
     datas = []
     for tweet in results['statuses']:
         data = collections.OrderedDict()
-
+        # XXX any new entries here should be reflected in COLUMNS XXX #
         data['id_str'] = str(tweet['id_str'])
         data['tweet_url'] = "https://twitter.com/" + tweet['user']['screen_name'] + "/status/" + str(tweet['id_str'])
         data['created_at'] = dateutil.parser.parse(tweet['created_at'])
@@ -251,7 +269,7 @@ def command_change_mode():
 def command_clean_state():
     scraperwiki.sql.execute("drop table if exists tweets")
     scraperwiki.sql.execute("drop table if exists __status")
-    scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
+    scraperwiki.sql.dt.create_table(COLUMNS, 'tweets')
     change_mode('clearing-backlog')
     os.system("crontab -r >/dev/null 2>&1")
     change_window(None, None)
@@ -329,7 +347,7 @@ def command_scrape(mode):
     try:
         # Make the tweets table *first* with dumb data, calling DumpTruck directly,
         # so it appears before the status one in the list
-        scraperwiki.sql.dt.create_table({'id_str': '1'}, 'tweets')
+        scraperwiki.sql.dt.create_table(COLUMNS, 'tweets')
 
         # Connect to Twitter
         tw = do_tool_oauth()
