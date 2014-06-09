@@ -301,6 +301,7 @@ def command_change_mode():
 def command_clean_state():
     scraperwiki.sql.execute("drop table if exists tweets")
     scraperwiki.sql.execute("drop table if exists __status")
+    scraperwiki.sql.execute("drop table if exists __max_id")
     scraperwiki.sql.dt.create_table(COLUMNS, 'tweets')
     change_mode('clearing-backlog')
     os.system("crontab -r >/dev/null 2>&1")
