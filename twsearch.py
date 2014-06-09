@@ -215,10 +215,15 @@ def get_max_id_ever_seen():
     Return the maximum id ever seen as an integer, or None if we've never seen any records.
     """
     try:
-	return scraperwiki.sql.select('max_id_seen from __status')[0]['max_id_seen']
+	return scraperwiki.sql.select('max_id_seen from __max_id')[0]['max_id_seen']
     except sqlite3.OperationalError:
         return get_max_id_ever_seen_expensive()
  
+
+def set_max_id_ever_seen(max_id_ever_seen):
+    data = {'id': 'max_id_seen', 'max_id_seen': max_id_ever_seen}
+    scraperwiki.sql.save(['id'], data, table_name='__max_id')
+    
 
 def process_results(results, query_terms):
     datas = []
@@ -263,6 +268,9 @@ def process_results(results, query_terms):
         min_id = min(int(x['id_str']) for x in datas)
         max_id = max(int(x['id_str']) for x in datas)
         log("about to save; min_id {}, max_id {}".format(min_id, max_id))
+        prev_max = get_max_id_ever_seen()
+        new_max = max(prev_max, max_id)
+        set_max_id_ever_seen(new_max)
     else:
         log("no datas")
     scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
