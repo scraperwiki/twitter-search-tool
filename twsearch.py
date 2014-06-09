@@ -196,6 +196,35 @@ def change_window(start, end):
     scraperwiki.sql.save(['id'], { 'id': 'tweets', 'window_start': start, 'window_end': end }, table_name='__window')
     log("new window! window = {!r} - {!r}".format(start, end))
 
+def get_max_id_ever_seen_expensive():
+    """
+    This query is expensive because sqlite can't have indices on computed fields.
+    We have to have the field in string form for javascript.
+    It's here as a legacy, we should only need to compute it once ever for a dataset
+    and then never again.
+    """
+    log("get_max_id_ever_seen_expensive called!")
+    try:
+	return scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"]
+    except sqlite3.OperationalError:
+        return None
+
+
+def get_max_id_ever_seen():
+    """
+    Return the maximum id ever seen as an integer, or None if we've never seen any records.
+    """
+    try:
+	return scraperwiki.sql.select('max_id_seen from __max_id')[0]['max_id_seen']
+    except sqlite3.OperationalError:
+        return get_max_id_ever_seen_expensive()
+ 
+
+def set_max_id_ever_seen(max_id_ever_seen):
+    data = {'id': 'max_id_seen', 'max_id_seen': max_id_ever_seen}
+    scraperwiki.sql.save(['id'], data, table_name='__max_id')
+    
+
 def process_results(results, query_terms):
     datas = []
     for tweet in results['statuses']:
@@ -239,6 +268,9 @@ def process_results(results, query_terms):
         min_id = min(int(x['id_str']) for x in datas)
         max_id = max(int(x['id_str']) for x in datas)
         log("about to save; min_id {}, max_id {}".format(min_id, max_id))
+        prev_max = get_max_id_ever_seen()
+        new_max = max(prev_max, max_id)
+        set_max_id_ever_seen(new_max)
     else:
         log("no datas")
     scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
@@ -269,6 +301,7 @@ def command_change_mode():
 def command_clean_state():
     scraperwiki.sql.execute("drop table if exists tweets")
     scraperwiki.sql.execute("drop table if exists __status")
+    scraperwiki.sql.execute("drop table if exists __max_id")
     scraperwiki.sql.dt.create_table(COLUMNS, 'tweets')
     change_mode('clearing-backlog')
     os.system("crontab -r >/dev/null 2>&1")
@@ -385,7 +418,7 @@ def command_scrape(mode):
         if not onetime:
             # The double cast here is so SQLite correctly sorts id_str as if it were and integer not a string,
             # yet we still return a string
-            window_start = make_sure_string(scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"])
+            window_start = make_sure_string(get_max_id_ever_seen())
             change_window(window_start, None)
 
         # Get the mode again, in case the user has meanwhile changed it by clicking "Monitor future tweets"
