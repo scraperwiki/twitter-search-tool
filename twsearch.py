@@ -196,6 +196,30 @@ def change_window(start, end):
     scraperwiki.sql.save(['id'], { 'id': 'tweets', 'window_start': start, 'window_end': end }, table_name='__window')
     log("new window! window = {!r} - {!r}".format(start, end))
 
+def get_max_id_ever_seen_expensive():
+    """
+    This query is expensive because sqlite can't have indices on computed fields.
+    We have to have the field in string form for javascript.
+    It's here as a legacy, we should only need to compute it once ever for a dataset
+    and then never again.
+    """
+    log("get_max_id_ever_seen_expensive called!")
+    try:
+	return scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"]
+    except sqlite3.OperationalError:
+        return None
+
+
+def get_max_id_ever_seen():
+    """
+    Return the maximum id ever seen as an integer, or None if we've never seen any records.
+    """
+    try:
+	return scraperwiki.sql.select('max_id_seen from __status')[0]['max_id_seen']
+    except sqlite3.OperationalError:
+        return get_max_id_ever_seen_expensive()
+ 
+
 def process_results(results, query_terms):
     datas = []
     for tweet in results['statuses']:
@@ -385,7 +409,7 @@ def command_scrape(mode):
         if not onetime:
             # The double cast here is so SQLite correctly sorts id_str as if it were and integer not a string,
             # yet we still return a string
-            window_start = make_sure_string(scraperwiki.sql.select("max(cast(id_str as integer)) as max_id from tweets")[0]["max_id"])
+            window_start = make_sure_string(get_max_id_ever_seen())
             change_window(window_start, None)
 
         # Get the mode again, in case the user has meanwhile changed it by clicking "Monitor future tweets"
