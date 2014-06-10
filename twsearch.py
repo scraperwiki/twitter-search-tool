@@ -264,6 +264,8 @@ def process_results(results, query_terms):
 
         datas.append(data)
 
+    scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
+
     if datas:
         min_id = min(int(x['id_str']) for x in datas)
         max_id = max(int(x['id_str']) for x in datas)
@@ -273,7 +275,7 @@ def process_results(results, query_terms):
         set_max_id_ever_seen(new_max)
     else:
         log("no datas")
-    scraperwiki.sql.save(['id_str'], datas, table_name="tweets")
+
     return len(results['statuses'])
 
 # we make a new crontab file, with random minute do distribute load for platform
