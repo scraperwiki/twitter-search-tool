@@ -159,6 +159,8 @@ COLUMNS = collections.OrderedDict([["id_str", unicode()],
                                    ["in_reply_to_status_id",  unicode()],
                                    ["lat", float(0)],
                                    ["lng", float(0)],
+                                   ["user_location", unicode()],
+                                   ["user_time_zone", unicode()],
                                    ["urls", unicode()],
                                    ["media", unicode()],
                                    ["user_mentions", unicode()],
@@ -289,6 +291,9 @@ def process_results(results, query_terms):
                 and 'coordinates' in tweet['geo']:
             data['lat'] = tweet['geo']['coordinates'][0]
             data['lng'] = tweet['geo']['coordinates'][1]
+
+        data['user_location'] = tweet['user']['location']
+        data['user_time_zone'] = tweet['user']['time_zone']
 
         entities = tweet.get('entities', {})
 
