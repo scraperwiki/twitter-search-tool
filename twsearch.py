@@ -463,11 +463,11 @@ def command_scrape(mode):
             if window_end is None:
                 log("    jumping forwards")
                 # for some reason can't just pass max_id in as None
-                results = tw.search.tweets(q=query_terms, result_type='recent',
+                results = tw.search.tweets(q=query_terms, result_type='recent', count=100,
                                            since_id=window_start)
             else:
                 log("    filling in backwards")
-                results = tw.search.tweets(q=query_terms, result_type='recent',
+                results = tw.search.tweets(q=query_terms, result_type='recent', count=100,
                                            max_id=window_end,
                                            since_id=window_start)
 
