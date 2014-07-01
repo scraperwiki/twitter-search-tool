@@ -185,7 +185,7 @@ var show_hide_stuff = function(done, rename) {
             fix_button_texts()
 
             if (results['current_status'] == 'rate-limit') {
-                var p = $('<p>').addClass('alert alert-warning').html('<b>Twitter has asked us to slow down!</b> See the <a href="https://scraperwiki.com/help/twitter-search/#faq">FAQ</a> for details and suggestions.')
+                var p = $('<p>').addClass('alert alert-warning').html('<b>Twitter has asked us to slow down!</b> See the <a href="https://scraperwiki.com/help/twitter-faq">FAQ</a> for details and suggestions.')
                 $('body').prepend(p)
                 results['current_status'] = 'ok-updating'
             }
