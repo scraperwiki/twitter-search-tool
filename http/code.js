@@ -50,10 +50,18 @@ var scrape_action = function() {
     // Pass various OAuth bits of data to the Python script that is going to do the work
     scraperwiki.exec('echo ' + scraperwiki.shellEscape(q) + '>query.txt; ONETIME=1 tool/twsearch.py "' + callback_url + '" "' + oauth_verifier + '"',
         function(content) {
-        // Set it going immediately in the background for a bit more instant gratification
+            if (content == "") {
+                fix_button_texts()
+                var p = $('<p>').addClass('alert alert-error').html('<b>Twitter have suspended this tool!</b> We are working hard to get it back. Please <a href="https://blog.scraperwiki.com/2014/07/no-twitter-tools-for-now-months-refund/">read our blog post</a> for details.')
+                var pre = $('<pre>').html(content).hide()
+                $('body').prepend(pre)
+                $('body').prepend(p)
+                return
+            }
+            // Set it going immediately in the background for a bit more instant gratification
             scraperwiki.exec('tool/twsearch.py >/dev/null 2>&1 &')
-        done_exec_main(content, true)
-    },
+            done_exec_main(content, true)
+        },
         function(obj, err, exception) {
             something_went_wrong(err + "! " + exception)
         }
